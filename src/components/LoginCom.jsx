@@ -68,6 +68,7 @@ const LoginCom = ({ setComponent }) => {
     onSuccess: (data) => {
       setButtonDisabled(false);
       navigate("/overview");
+
       const adminData = {
         email: data?.email,
         firstname: data?.firstname,
@@ -75,8 +76,8 @@ const LoginCom = ({ setComponent }) => {
       };
 
       localStorage.setItem("user", JSON.stringify(adminData));
-      Cookies.set("authToken", data?.tokens?.access);
-      Cookies.set("refreshToken", data?.tokens?.refresh);
+      Cookies.set("authToken", data?.access_token);
+      Cookies.set("refreshToken", data?.refresh_token);
 
       // Handle success, update state, or perform further actions
     },

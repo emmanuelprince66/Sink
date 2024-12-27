@@ -11,19 +11,19 @@ const Members = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [filterValue, setFilterValue] = useState("");
+  const [planValue, setPlanValue] = useState("TRIAL");
   const [searchValue, setSearchValue] = useState("");
 
   const apiUrl = allMembersUrl(
     currentPage,
     rowsPerPage,
-    filterValue,
+    planValue,
     searchValue
   );
   const queryKey = ["fetchMembers", apiUrl, currentPage];
   const { data, error, isLoading } = useFetchData(queryKey, apiUrl);
 
-  const totalPages = data?.pages;
+  const totalPages = data?.total;
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -44,11 +44,11 @@ const Members = () => {
           handlePageChange={handlePageChange}
           currentPage={currentPage}
           setShowComp={setShowComp}
-          setFilterValue={setFilterValue}
+          setPlanValue={setPlanValue}
           setMemberId={setMemberId}
           setSearchValue={setSearchValue}
           searchValue={searchValue}
-          filterValue={filterValue}
+          planValue={planValue}
           totalPages={totalPages}
           data={data || []}
         />

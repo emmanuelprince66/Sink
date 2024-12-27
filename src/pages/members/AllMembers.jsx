@@ -30,18 +30,20 @@ const AllMembers = ({
   setShowComp,
   currentPage,
   setMemberId,
-  filterValue,
+  planValue,
   setSearchValue,
   handlePageChange,
   totalPages,
-  setFilterValue,
+  setPlanValue,
   data,
 }) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(100);
   const navigate = useNavigate();
 
-  const handleNavigateMember = (id) => {
+  console.log("data", data);
+
+  const handleNavigateMerchant = (id) => {
     setShowComp("profile");
     setMemberId(id);
   };
@@ -94,19 +96,19 @@ const AllMembers = ({
 
             <div className="flex items-center gap-5 w-[70%]">
               <Button
-                onClick={() => setFilterValue("")}
+                onClick={() => setPlanValue("")}
                 sx={{
-                  background: filterValue === "" ? "#FAFAFA" : "#fff",
+                  background: planValue === "" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    filterValue === ""
+                    planValue === ""
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: filterValue === "" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
-                    backgroundColor: filterValue === "" ? "#FAFAFA" : "#fff",
+                    backgroundColor: planValue === "" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -115,20 +117,20 @@ const AllMembers = ({
                 All Merchants
               </Button>
               <Button
-                onClick={() => setFilterValue("Free Trial")}
+                onClick={() => setPlanValue("Free Trial")}
                 sx={{
-                  background: filterValue === "Free Trial" ? "#FAFAFA" : "#fff",
+                  background: planValue === "Free Trial" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    filterValue === "Free Trial"
+                    planValue === "Free Trial"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: filterValue === "Free Trial" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "Free Trial" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      filterValue === "Free Trial" ? "#FAFAFA" : "#fff",
+                      planValue === "Free Trial" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -137,20 +139,20 @@ const AllMembers = ({
                 Free Trial
               </Button>
               <Button
-                onClick={() => setFilterValue("Basic Plan")}
+                onClick={() => setPlanValue("Basic Plan")}
                 sx={{
-                  background: filterValue === "Basic Plan" ? "#FAFAFA" : "#fff",
+                  background: planValue === "Basic Plan" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    filterValue === "Basic Plan"
+                    planValue === "Basic Plan"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: filterValue === "Basic Plan" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "Basic Plan" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      filterValue === "Basic Plan" ? "#FAFAFA" : "#fff",
+                      planValue === "Basic Plan" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -160,20 +162,20 @@ const AllMembers = ({
               </Button>
 
               <Button
-                onClick={() => setFilterValue("Sync Plus")}
+                onClick={() => setPlanValue("Sync Plus")}
                 sx={{
-                  background: filterValue === "Sync Plus" ? "#FAFAFA" : "#fff",
+                  background: planValue === "Sync Plus" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    filterValue === "Sync Plus"
+                    planValue === "Sync Plus"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: filterValue === "Sync Plus" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "Sync Plus" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      filterValue === "Sync Plus" ? "#FAFAFA" : "#fff",
+                      planValue === "Sync Plus" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -182,20 +184,20 @@ const AllMembers = ({
                 Sync Plus
               </Button>
               <Button
-                onClick={() => setFilterValue("Sync Pro")}
+                onClick={() => setPlanValue("Sync Pro")}
                 sx={{
-                  background: filterValue === "Sync Pro" ? "#FAFAFA" : "#fff",
+                  background: planValue === "Sync Pro" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    filterValue === "Sync Pro"
+                    planValue === "Sync Pro"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: filterValue === "Sync Pro" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "Sync Pro" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      filterValue === "Sync Pro" ? "#FAFAFA" : "#fff",
+                      planValue === "Sync Pro" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -204,20 +206,20 @@ const AllMembers = ({
                 Sync Pro
               </Button>
               <Button
-                onClick={() => setFilterValue("Inactive")}
+                onClick={() => setPlanValue("Inactive")}
                 sx={{
-                  background: filterValue === "Inactive" ? "#FAFAFA" : "#fff",
+                  background: planValue === "Inactive" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    filterValue === "Inactive"
+                    planValue === "Inactive"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: filterValue === "Sync Pro" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "Sync Pro" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      filterValue === "Inactive" ? "#FAFAFA" : "#fff",
+                      planValue === "Inactive" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -226,7 +228,7 @@ const AllMembers = ({
                 Inactive
               </Button>
             </div>
-            {/* filterValue */}
+            {/* planValue */}
 
             {/* Table */}
 
@@ -248,7 +250,7 @@ const AllMembers = ({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {!data?.results ? (
+                    {!data?.data ? (
                       <CircularProgress
                         size="4.2rem"
                         sx={{
@@ -257,10 +259,10 @@ const AllMembers = ({
                           padding: "1em",
                         }}
                       />
-                    ) : data?.results &&
-                      Array.isArray(data?.results) &&
-                      data?.results?.length > 0 ? (
-                      data?.results?.map((item, i) => (
+                    ) : data?.data &&
+                      Array.isArray(data?.data) &&
+                      data?.data?.length > 0 ? (
+                      data?.data?.map((item, i) => (
                         <TableRow key={item.id}>
                           <TableCell>{page * rowsPerPage + i + 1}</TableCell>
                           <TableCell>
@@ -271,7 +273,7 @@ const AllMembers = ({
                                 color: "#828282",
                               }}
                             >
-                              {item?.lastname} {item?.firstname}
+                              {item?.name}
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -289,18 +291,12 @@ const AllMembers = ({
                           <TableCell>
                             <Typography
                               sx={{
-                                color:
-                                  item?.membership_status?.toLowerCase() ===
-                                  "active"
-                                    ? "#208637"
-                                    : "#E52929",
+                                color: item?.is_active ? "#208637" : "#E52929",
                                 fontWeight: "500",
                                 fontSize: "12px",
-                                background:
-                                  item?.membership_status?.toLowerCase() ===
-                                  "active"
-                                    ? "#EBFFF3"
-                                    : "#FBEBEC",
+                                background: item?.is_active
+                                  ? "#EBFFF3"
+                                  : "#FBEBEC",
                                 py: "5px",
                                 borderRadius: "10px",
                                 display: "flex",
@@ -310,18 +306,17 @@ const AllMembers = ({
                                 width: "80px",
                               }}
                             >
-                              {item?.membership_status?.toLowerCase() ===
-                              "active" ? (
+                              {item?.is_active ? (
                                 <span className="w-[10px] h-[10px] rounded-full  bg-primary_green" />
                               ) : (
                                 <span className="w-[10px] h-[10px] rounded-full  bg-[#E52929]" />
                               )}
-                              {item?.membership_status?.toLowerCase()}
+                              {item?.is_active ? "Active" : "Inactive"}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Button
-                              onClick={() => handleNavigateMember(item?.id)}
+                              onClick={() => handleNavigateMerchant(item?.id)}
                               variant="outlined"
                               sx={{
                                 textTransform: "capitalize",

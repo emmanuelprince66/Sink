@@ -1,10 +1,10 @@
 export const allMembersUrl = (
   currentPage,
   rowsPerPage,
-  filterValue,
+  planValue,
   searchValue
 ) => {
-  return `/admin/users/?page=${currentPage}&limit=${rowsPerPage}&status=${filterValue}&search=${searchValue}`;
+  return `/merchant/users/?page=${currentPage}&limit=${rowsPerPage}&plan=${planValue}&search=${searchValue}`;
 };
 
 export const overveiwUrl = (selectedDates) => {
@@ -21,7 +21,7 @@ export const targetSavingsUrl = () => {
   return "/admin/savings_stats";
 };
 export const membersProfileUrl = (memberId) => {
-  return `/admin/user/${memberId}`;
+  return `/merchant/user/${memberId}`;
 };
 export const investmentListDataUrl = (filterValue, selectedDates) => {
   return `/admin/investment_stats/?status=${filterValue}&start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;

@@ -189,7 +189,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                       <div className="flex flex-col items-start gap-2">
                         <p className="text-primary_grey_2 text-[12px] ">Name</p>
                         <p className="text-general text-[16px]">
-                          <FormattedPrice amount={data?.wallet_balance} />
+                          {data?.lastname} {data?.firstname}
                         </p>
                       </div>
                     </div>

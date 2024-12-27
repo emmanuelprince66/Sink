@@ -27,7 +27,7 @@ async function refreshToken() {
   }
 
   try {
-    const response = await BaseAxios.post("/auth/refresh/", {
+    const response = await BaseAxios.post("/auth/refresh-token/", {
       refresh: refreshToken,
     });
     console.log("Token refreshed:", response.data);
