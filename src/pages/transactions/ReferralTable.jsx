@@ -54,9 +54,10 @@ const ReferralTable = ({
             >
               <TableRow>
                 <TableCell>S/N</TableCell>
-                <TableCell> Referral</TableCell>
-                <TableCell>Referral Count</TableCell>
-                <TableCell>Total Amount Earned(N)</TableCell>
+                <TableCell> Name</TableCell>
+                <TableCell>Level</TableCell>
+                <TableCell>Total Merchant Onboarded</TableCell>
+                <TableCell>Total Earned</TableCell>
                 <TableCell>Action</TableCell>
               </TableRow>
             </TableHead>

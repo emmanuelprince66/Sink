@@ -51,27 +51,51 @@ const Referrals = () => {
   return (
     <div className="w-full flex items-start flex-col gap-5">
       <div className="w-full flex justify-between gap-3 mt-3">
-        {isLoading ? (
+        {false ? (
           <Skeleton variant="rounded" width="100%" height={147} />
         ) : (
           <CustomReferralCard
-            text="Total Referral Count(All-Time)"
+            text="Total Marketers(All-Time)"
             amt={referralData?.results?.total_referrals}
           />
         )}
-        {isLoading ? (
+        {false ? (
           <Skeleton variant="rounded" width="100%" height={147} />
         ) : (
           <CustomReferralCard
-            text="Total Referral Count(By-Filter)"
+            text="Total Onboarded(By-Filter)"
             amt={referralData?.results?.filtered_referrals}
           />
         )}
-        {isLoading ? (
+        {false ? (
           <Skeleton variant="rounded" width="100%" height={147} />
         ) : (
           <CustomReferralCard
-            text="Total Amount Paid To Referral"
+            text="Total Amount Paid To Marketer"
+            amt={
+              <FormattedPrice
+                amount={referralData?.results?.total_referral_balance_sum}
+              />
+            }
+          />
+        )}
+        {false ? (
+          <Skeleton variant="rounded" width="100%" height={147} />
+        ) : (
+          <CustomReferralCard
+            text="Total Upcoming Payment"
+            amt={
+              <FormattedPrice
+                amount={referralData?.results?.total_referral_balance_sum}
+              />
+            }
+          />
+        )}
+        {false ? (
+          <Skeleton variant="rounded" width="100%" height={147} />
+        ) : (
+          <CustomReferralCard
+            text="View More"
             amt={
               <FormattedPrice
                 amount={referralData?.results?.total_referral_balance_sum}

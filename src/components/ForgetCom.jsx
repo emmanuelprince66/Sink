@@ -38,7 +38,7 @@ const ForgetCom = ({ setComponent, setUserEmail }) => {
       console.log(formData);
       try {
         const response = await BaseAxios({
-          url: "/admin/request-reset-password-email/",
+          url: "/auth/forget-password/",
           method: "POST",
           data: formData,
         });

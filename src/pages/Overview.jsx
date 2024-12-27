@@ -69,7 +69,7 @@ const Overview = () => {
       </div>
 
       <div className="w-full flex items-center justify-between gap-9 mt-7">
-        {isLoading || !data ? (
+        {false ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#F6FFF8" style="w-full">
@@ -77,7 +77,7 @@ const Overview = () => {
               <div className="flex gap-3   items-center">
                 <img src={oOne} alt="0-1" />
                 <p className="text-general text-[14px] font-[500]">
-                  Total Revenue
+                  Total revenue from sales
                 </p>
               </div>
 
@@ -97,7 +97,7 @@ const Overview = () => {
           </CustomCard>
         )}
 
-        {isLoading || !data ? (
+        {false ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#FCF5FF" style="w-full">
@@ -105,7 +105,7 @@ const Overview = () => {
               <div className="flex gap-3   items-center">
                 <img src={oTwo} alt="0-1" />
                 <p className="text-general text-[14px] font-[500]">
-                  Total Savings
+                  Total Sales
                 </p>
               </div>
 
@@ -125,7 +125,7 @@ const Overview = () => {
           </CustomCard>
         )}
 
-        {isLoading || !data ? (
+        {false ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#FFF7E8" style="w-full">
@@ -133,7 +133,7 @@ const Overview = () => {
               <div className="flex gap-3   items-center">
                 <img src={oThree} alt="0-1" />
                 <p className="text-general text-[14px] font-[500]">
-                  Registered Users
+                  Total Merchant
                 </p>
               </div>
 
@@ -152,14 +152,16 @@ const Overview = () => {
             </div>
           </CustomCard>
         )}
-        {isLoading || !data ? (
+        {false ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#FCF5FF" style="w-full">
             <div className="w-full flex-col items-start gap-3">
               <div className="flex gap-3   items-center">
                 <img src={oThree} alt="0-1" />
-                <p className="text-general text-[14px] font-[500]">Data</p>
+                <p className="text-general text-[14px] font-[500]">
+                  Total Subscribed Merchants
+                </p>
               </div>
 
               <div className="flex-col flex items-start gap-2 mt-5">
@@ -177,7 +179,7 @@ const Overview = () => {
             </div>
           </CustomCard>
         )}
-        {isLoading || !data ? (
+        {false ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#F6FFF8" style="w-full">
@@ -185,7 +187,7 @@ const Overview = () => {
               <div className="flex gap-3   items-center">
                 <img src={oThree} alt="0-1" />
                 <p className="text-general text-[14px] font-[500]">
-                  Total Withdrawals
+                  Total Revenue from Subscriptions
                 </p>
               </div>
 

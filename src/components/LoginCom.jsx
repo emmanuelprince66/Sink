@@ -49,7 +49,7 @@ const LoginCom = ({ setComponent }) => {
       console.log(formData);
       try {
         const response = await BaseAxios({
-          url: "/admin/login/",
+          url: "/auth/login/",
           method: "POST",
           data: formData,
         });
@@ -69,12 +69,12 @@ const LoginCom = ({ setComponent }) => {
       setButtonDisabled(false);
       navigate("/overview");
       const adminData = {
-        email:data?.email,
-        firstname:data?.firstname,
-        role:data?.role
-      }
+        email: data?.email,
+        firstname: data?.firstname,
+        role: data?.role,
+      };
 
-      localStorage.setItem("user" , JSON.stringify(adminData))
+      localStorage.setItem("user", JSON.stringify(adminData));
       Cookies.set("authToken", data?.tokens?.access);
       Cookies.set("refreshToken", data?.tokens?.refresh);
 

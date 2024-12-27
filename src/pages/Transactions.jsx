@@ -266,7 +266,7 @@ const Transactions = () => {
               Export
             </Button>
           </div>
-          <div className="flex w-[90%] gap-3  items-center">
+          <div className="flex w-[40%] gap-3  items-center">
             <Button
               onClick={() => setTrxFilter("")}
               sx={{
@@ -286,7 +286,7 @@ const Transactions = () => {
             >
               All Transactions
             </Button>
-            <Button
+            {/* <Button
               onClick={() => setTrxFilter("WALLET-CREDIT")}
               sx={{
                 background: trxFilter === "WALLET-CREDIT" ? "#FAFAFA" : "#fff",
@@ -352,7 +352,7 @@ const Transactions = () => {
               }}
             >
               Withdrawal
-            </Button>
+            </Button> */}
             <Button
               onClick={() => setTrxFilter("referral")}
               sx={{

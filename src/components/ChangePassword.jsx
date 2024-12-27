@@ -44,18 +44,17 @@ const ChangePassword = ({ setComponent, uuid }) => {
   // verify otp mutation
   const changeMutation = useMutation({
     mutationFn: async (formData) => {
-      console.log(formData);
       try {
         const response = await BaseAxios({
-          url: "/admin/reset_password/",
-          method: "PATCH",
+          url: "/auth/reset-password/",
+          method: "POST",
           data: formData,
         });
 
         if (response.status !== 200) {
           throw new Error(response.data.message);
         }
-
+        console.log("res", response);
         return response.data;
       } catch (error) {
         notiError(error?.response?.data?.error);
@@ -129,8 +128,10 @@ const ChangePassword = ({ setComponent, uuid }) => {
   const handleResetPassword = () => {
     setButtonDisabled(true);
 
+    console.log(passwordInput, confirmPasswordInput);
+
     if (passwordInput !== confirmPasswordInput) {
-      notiError("Passwordndo not match!");
+      notiError("Password do not match!");
       setButtonDisabled(false);
     } else if (passwordInput.length < 6) {
       notiError("Password must be six or more characters");
@@ -406,7 +407,7 @@ const ChangePassword = ({ setComponent, uuid }) => {
               <Button
                 onClick={handleResetPassword}
                 variant="contained"
-                type="submit"
+                // type="submit"
                 disabled={buttonDisabled || changeMutation.isLoading}
                 sx={{
                   color: "#fff",

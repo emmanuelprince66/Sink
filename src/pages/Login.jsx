@@ -7,6 +7,7 @@ import ForgetCom from "../components/ForgetCom";
 import VerifyOtpCom from "../components/VerifyOtpCom";
 import ChangePassword from "../components/ChangePassword";
 import SuccessCom from "../components/SuccessCom";
+import sinkOne from "../assets/sink/sink1.png";
 
 const Login = () => {
   const [component, setComponent] = useState("Login");
@@ -16,7 +17,13 @@ const Login = () => {
   return (
     <main className="flex md:grid md:grid-cols-2 flex-col-reverse min-h-screen">
       <section className="bg-[#001e06] hidden  md:block  p-4 items-center pb-5 md:pb-0 justify-center">
-        <img src={wagesLogo} alt="wages-logo" />
+        <div className="h-[100px] w-[200px]">
+          <img
+            src={sinkOne}
+            alt="wages-logo"
+            className="h-full w-full object-fill"
+          />
+        </div>
         <div className="pt-5 flex justify-center mt-[8rem]  w-full">
           <img className="h-[40vh]" src={wagesOne} />
         </div>

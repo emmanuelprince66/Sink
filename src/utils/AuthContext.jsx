@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
   const token = getCookie("authToken");
 
   useEffect(() => {
-    setShowSpinner(true); 
+    setShowSpinner(true);
     async function fetchUserDetails() {
       if (!token || token === "undefined" || token === "null") {
         if (
@@ -29,11 +29,11 @@ export function AuthProvider({ children }) {
             }
           } catch (error) {
             console.error("Error fetching user details:", error.message);
-            setRedirectToLogin(true); // Redirect to login on error
+            // setRedirectToLogin(true); // Redirect to login on error
             setShowSpinner(false);
           }
         } else {
-          setRedirectToLogin(true); // Redirect to login if no refresh token
+          // setRedirectToLogin(true); // Redirect to login if no refresh token
           setShowSpinner(false);
         }
       } else {

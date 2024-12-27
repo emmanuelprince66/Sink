@@ -17,6 +17,7 @@ import { DateProvider } from "./utils/DateContext";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 import Investment from "./pages/investments/Investment";
 import Transactions from "./pages/Transactions";
+import Rmerchant from "./pages/r-merchant/Rmerchant";
 
 const theme = createTheme({
   typography: {
@@ -33,6 +34,7 @@ const RoutesContainer = () => {
     { component: <Investment />, path: "/investments", name: "Investments" },
     { component: <Transactions />, path: "/transactions", name: "Transaction" },
     { component: <Loans />, path: "/loans", name: "Loans" },
+    { component: <Rmerchant />, path: "/r-merchant", name: "Rmerchant" },
     {
       component: <Notifications />,
       path: "/notifications",

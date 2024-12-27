@@ -54,7 +54,7 @@ const AllMembers = ({
     <>
       <div className="w-full flex items-start gap-3 flex-col justify-center">
         <div className="flex items-center gap-2">
-          <p className=" text-[#171717] font-[600] text-[20px] ">Members</p>
+          <p className=" text-[#171717] font-[600] text-[20px] ">Merchants</p>
           <div className="flex items-center gap-1">
             (
             <div className="flex gap-1">
@@ -92,7 +92,7 @@ const AllMembers = ({
 
             {/* filter */}
 
-            <div className="flex items-center gap-5 w-1/2">
+            <div className="flex items-center gap-5 w-[70%]">
               <Button
                 onClick={() => setFilterValue("")}
                 sx={{
@@ -112,45 +112,112 @@ const AllMembers = ({
                   fontWeight: "400",
                 }}
               >
-                All Members
+                All Merchants
               </Button>
               <Button
-                onClick={() => setFilterValue("active")}
+                onClick={() => setFilterValue("Free Trial")}
                 sx={{
-                  background: filterValue === "active" ? "#FAFAFA" : "#fff",
+                  background: filterValue === "Free Trial" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    filterValue === "active"
+                    filterValue === "Free Trial"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: filterValue === "active" ? "#02981D" : "#5E5E5E",
+                  color: filterValue === "Free Trial" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      filterValue === "active" ? "#FAFAFA" : "#fff",
+                      filterValue === "Free Trial" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
                 }}
               >
-                Active
+                Free Trial
               </Button>
               <Button
-                onClick={() => setFilterValue("inactive")}
+                onClick={() => setFilterValue("Basic Plan")}
                 sx={{
-                  background: filterValue === "inactive" ? "#FAFAFA" : "#fff",
+                  background: filterValue === "Basic Plan" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    filterValue === "inactive"
+                    filterValue === "Basic Plan"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: filterValue === "inactive" ? "#02981D" : "#5E5E5E",
+                  color: filterValue === "Basic Plan" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      filterValue === "inactive" ? "#FAFAFA" : "#fff",
+                      filterValue === "Basic Plan" ? "#FAFAFA" : "#fff",
+                  },
+                  textTransform: "capitalize",
+                  fontWeight: "400",
+                }}
+              >
+                Basic Plan
+              </Button>
+
+              <Button
+                onClick={() => setFilterValue("Sync Plus")}
+                sx={{
+                  background: filterValue === "Sync Plus" ? "#FAFAFA" : "#fff",
+                  borderRadius: "8px",
+                  width: "100%",
+                  px: "15px",
+                  border:
+                    filterValue === "Sync Plus"
+                      ? "1px solid #02981D"
+                      : "1px solid #5E5E5E",
+                  color: filterValue === "Sync Plus" ? "#02981D" : "#5E5E5E",
+                  "&:hover": {
+                    backgroundColor:
+                      filterValue === "Sync Plus" ? "#FAFAFA" : "#fff",
+                  },
+                  textTransform: "capitalize",
+                  fontWeight: "400",
+                }}
+              >
+                Sync Plus
+              </Button>
+              <Button
+                onClick={() => setFilterValue("Sync Pro")}
+                sx={{
+                  background: filterValue === "Sync Pro" ? "#FAFAFA" : "#fff",
+                  borderRadius: "8px",
+                  width: "100%",
+                  px: "15px",
+                  border:
+                    filterValue === "Sync Pro"
+                      ? "1px solid #02981D"
+                      : "1px solid #5E5E5E",
+                  color: filterValue === "Sync Pro" ? "#02981D" : "#5E5E5E",
+                  "&:hover": {
+                    backgroundColor:
+                      filterValue === "Sync Pro" ? "#FAFAFA" : "#fff",
+                  },
+                  textTransform: "capitalize",
+                  fontWeight: "400",
+                }}
+              >
+                Sync Pro
+              </Button>
+              <Button
+                onClick={() => setFilterValue("Inactive")}
+                sx={{
+                  background: filterValue === "Inactive" ? "#FAFAFA" : "#fff",
+                  borderRadius: "8px",
+                  width: "100%",
+                  px: "15px",
+                  border:
+                    filterValue === "Inactive"
+                      ? "1px solid #02981D"
+                      : "1px solid #5E5E5E",
+                  color: filterValue === "Sync Pro" ? "#02981D" : "#5E5E5E",
+                  "&:hover": {
+                    backgroundColor:
+                      filterValue === "Inactive" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",

@@ -20,8 +20,8 @@ import { ToastContainer } from "react-toastify";
 import { notiError, notiSuccess } from "../utils/noti";
 
 const VerifyOtpCom = ({ setComponent, userEmail, setUuid }) => {
-  const [pins, setPins] = useState(["", "", "", ""]);
-  const pinRef = [useRef(), useRef(), useRef(), useRef()];
+  const [pins, setPins] = useState(["", "", "", "", "", ""]);
+  const pinRef = [useRef(), useRef(), useRef(), useRef(), useRef(), useRef()];
   const [key, setKey] = useState(Math.random());
   const [buttonDisabled, setButtonDisabled] = useState(false);
 
@@ -31,7 +31,7 @@ const VerifyOtpCom = ({ setComponent, userEmail, setUuid }) => {
       console.log(formData);
       try {
         const response = await BaseAxios({
-          url: "/admin/verify_code/",
+          url: "/auth/verify-password-token/",
           method: "POST",
           data: formData,
         });
@@ -72,7 +72,7 @@ const VerifyOtpCom = ({ setComponent, userEmail, setUuid }) => {
       console.log(formData);
       try {
         const response = await BaseAxios({
-          url: "/admin/request-reset-password-email/",
+          url: "/auth/reset-password/",
           method: "POST",
           data: formData,
         });
@@ -96,6 +96,7 @@ const VerifyOtpCom = ({ setComponent, userEmail, setUuid }) => {
       setButtonDisabled(false);
     },
   });
+
   const initialSeconds = 60;
   const [time, setTime] = useState({
     minutes: Math.floor(initialSeconds / 60),

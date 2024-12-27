@@ -11,6 +11,7 @@ import Ssix from "../assets/sidebar/Ssix";
 import Sseven from "../assets/sidebar/Sseven";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import Seight from "../assets/sidebar/Seight";
+import sinkTwo from "../assets/sink/sink2.png";
 const SideBar = () => {
   const navigate = useNavigate();
   const location = window.location.pathname;
@@ -32,7 +33,7 @@ const SideBar = () => {
       link: "overview",
     },
     {
-      name: "Members",
+      name: "Merchants",
       component: (
         <span isRightLink={location === "/members"}>
           <Stwo color={location === "/members" ? "white" : "#5E5E5E"} />
@@ -40,33 +41,33 @@ const SideBar = () => {
       ),
       link: "members",
     },
-    {
-      name: "Savings",
-      component: (
-        <span isRightLink={location === "/savings"}>
-          <Sthree color={location === "/savings" ? "white" : "#5E5E5E"} />
-        </span>
-      ),
-      link: "savings",
-    },
-    {
-      name: "Investments",
-      component: (
-        <span isRightLink={location === "/investments"}>
-          <Sfour color={location === "/investments" ? "white" : "#5E5E5E"} />
-        </span>
-      ),
-      link: "investments",
-    },
-    {
-      name: "Loans",
-      component: (
-        <span isRightLink={location === "/loans"}>
-          <Sfive color={location === "/loans" ? "white" : "#5E5E5E"} />
-        </span>
-      ),
-      link: "loans",
-    },
+    // {
+    //   name: "Savings",
+    //   component: (
+    //     <span isRightLink={location === "/savings"}>
+    //       <Sthree color={location === "/savings" ? "white" : "#5E5E5E"} />
+    //     </span>
+    //   ),
+    //   link: "savings",
+    // },
+    // {
+    //   name: "Investments",
+    //   component: (
+    //     <span isRightLink={location === "/investments"}>
+    //       <Sfour color={location === "/investments" ? "white" : "#5E5E5E"} />
+    //     </span>
+    //   ),
+    //   link: "investments",
+    // },
+    // {
+    //   name: "Loans",
+    //   component: (
+    //     <span isRightLink={location === "/loans"}>
+    //       <Sfive color={location === "/loans" ? "white" : "#5E5E5E"} />
+    //     </span>
+    //   ),
+    //   link: "loans",
+    // },
     {
       name: "Transactions",
       component: (
@@ -85,6 +86,7 @@ const SideBar = () => {
       ),
       link: "notifications",
     },
+
     {
       name: "Administrator",
       component: (
@@ -94,11 +96,27 @@ const SideBar = () => {
       ),
       link: "administrator",
     },
+    {
+      name: "Register a Merchant",
+      component: (
+        <span isRightLink={location === "/r-merchant"}>
+          <Sseven color={location === "/r-merchant" ? "white" : "#5E5E5E"} />
+        </span>
+      ),
+      link: "r-merchant",
+    },
   ];
   return (
     <div className="p-3 ">
       <div className="h-full w-full mb-[30%] mt-[5%]">
-        <img src={wagesLogo} className="object-cover" alt="wages-icon" />
+        {/* <img src={wagesLogo} className="object-cover" alt="wages-icon" /> */}
+        <div className="h-[50px] w-[100px]">
+          <img
+            src={sinkTwo}
+            alt="sink-logo"
+            className="h-full w-full object-fill "
+          />
+        </div>
       </div>
 
       <div>

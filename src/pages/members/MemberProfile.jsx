@@ -90,7 +90,7 @@ const MemberProfile = ({ close, memberId, type }) => {
         <div className="flex items-center gap-1">
           <img src={mOne} alt="" className="w-[12px] h-[12px]" />
           <p className="text-[14px]  text-[#17171]">
-            {data?.lastname} {data?.firstname}
+            {data?.lastname || ""} {data?.firstname || ""}
           </p>
         </div>
       </div>
@@ -108,7 +108,7 @@ const MemberProfile = ({ close, memberId, type }) => {
 
       {/* card 1 */}
 
-      {isLoading || !data ? (
+      {false ? (
         <Skeleton variant="rounded" width="100%" height={250} />
       ) : (
         <CustomCard style="w-full">
@@ -173,7 +173,7 @@ const MemberProfile = ({ close, memberId, type }) => {
       {/* card 2 */}
       <Grid container spacing={2}>
         <Grid item xs={6}>
-          {!data || isLoading ? (
+          {false ? (
             <Skeleton variant="rounded" width="100%" height={410} />
           ) : (
             <CustomCard style="w-full h-full">
@@ -187,9 +187,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                     <div className="flex gap-3 items-center mb-2">
                       <img src={mNine} alt="" />
                       <div className="flex flex-col items-start gap-2">
-                        <p className="text-primary_grey_2 text-[12px] ">
-                          Wallet Balance
-                        </p>
+                        <p className="text-primary_grey_2 text-[12px] ">Name</p>
                         <p className="text-general text-[16px]">
                           <FormattedPrice amount={data?.wallet_balance} />
                         </p>
@@ -199,7 +197,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                       <img src={mFour} alt="" />
                       <div className="flex flex-col items-start gap-2">
                         <p className="text-primary_grey_2 text-[12px] ">
-                          Cooperative Membership: Status:
+                          Business Name :
                         </p>
                         <Typography
                           sx={{
@@ -238,7 +236,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                       <img src={mFour} alt="" />
                       <div className="flex flex-col items-start gap-2">
                         <p className="text-primary_grey_2 text-[12px] ">
-                          Membership ID:
+                          Business Type :
                         </p>
                         <p className="text-general text-[16px] ">
                           {data?.membership_id}
@@ -249,7 +247,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                       <img src={mFive} alt="" />
                       <div className="flex flex-col items-start gap-2 mb-2">
                         <p className="text-primary_grey_2 text-[12px] ">
-                          KYC Level
+                          Country
                         </p>
                         <p className="text-general text-[16px] ">
                           {data?.tier}
@@ -260,7 +258,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                       <img src={mSix} alt="" />
                       <div className="flex flex-col items-start gap-2 mb-2">
                         <p className="text-primary_grey_2 text-[12px] ">
-                          Date Joined
+                          Currency
                         </p>
                         <p className="text-general text-[16px] ">
                           {formattedDate(data?.created_at)}
@@ -271,7 +269,16 @@ const MemberProfile = ({ close, memberId, type }) => {
                       <img src={mSix} alt="" />
                       <div className="flex flex-col items-start gap-1">
                         <p className="text-primary_grey_2 text-[12px] ">
-                          Date Cancelled
+                          State
+                        </p>
+                        <p className="text-general text-[16px] ">-</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 items-center">
+                      <img src={mSix} alt="" />
+                      <div className="flex flex-col items-start gap-1">
+                        <p className="text-primary_grey_2 text-[12px] ">
+                          Address.
                         </p>
                         <p className="text-general text-[16px] ">-</p>
                       </div>
@@ -313,19 +320,19 @@ const MemberProfile = ({ close, memberId, type }) => {
 
         <Grid item xs={6}>
           <div className="h-full w-full flex items-center flex-col gap-2">
-            {!data || isLoading ? (
+            {false ? (
               <Skeleton variant="rounded" width="100%" height={200} />
             ) : (
               <CustomCard style="w-full h-full">
                 <div className="w-full flex items-start flex-col gap-2">
                   <p className="text-general font-[500] text-[16px] mb-3">
-                    Savings, Investment & Loan Portfolio
+                    Inventory, Customer, Expenses and Supplier
                   </p>
 
                   <div className="w-full flex justify-between items-center">
                     <div className="flex-col flex items-start gap-1">
                       <p className="text-[14px] text-primary_grey_2">
-                        Total Corporative Savings :
+                        Total Inventory :
                       </p>
                       <p className="text-general font-[600] text-[24px] ">
                         <FormattedPrice amount={data?.total_coop_savings} />
@@ -335,7 +342,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                         onClick={() => setOpenCorporateSavingsModal(true)}
                       >
                         <p className="text-primary_green text-[12px] font-[500]">
-                          View Savings Plans
+                          View Inventory
                         </p>
 
                         <ChevronRightOutlinedIcon sx={{ color: "#02981D" }} />
@@ -344,7 +351,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                     <div className="min-h-[5rem] w-[1px] bg-[#E3E3E3]"></div>
                     <div className="flex-col flex items-start gap-1">
                       <p className="text-[14px] text-primary_grey_2">
-                        Total Personal Savings :
+                        Total Customers :
                       </p>
                       <p className="text-general font-[600] text-[24px] ">
                         <FormattedPrice amount={data?.total_savings} />
@@ -365,7 +372,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                   <div className="w-full flex justify-between items-center">
                     <div className="flex-col flex items-start gap-1 mt-4">
                       <p className="text-[14px] text-primary_grey_2">
-                        Outstanding Loan: :
+                        Total Expenses:
                       </p>
                       <p className="text-primary_red font-[600] text-[24px] ">
                         <FormattedPrice amount={data?.outstanding_loan} />
@@ -382,7 +389,7 @@ const MemberProfile = ({ close, memberId, type }) => {
 
                     <div className="flex-col flex items-start gap-1">
                       <p className="text-[14px] text-primary_grey_2">
-                        Total Investment Value :
+                        Total Supplier :
                       </p>
                       <p className="text-general font-[600] text-[24px] ">
                         <FormattedPrice amount={data?.total_investment} />
@@ -402,13 +409,13 @@ const MemberProfile = ({ close, memberId, type }) => {
                 </div>
               </CustomCard>
             )}
-            {!data || isLoading ? (
+            {false ? (
               <Skeleton variant="rounded" width="100%" height={200} />
             ) : (
               <CustomCard style="w-full h-full">
                 <div className="w-full flex items-start flex-col gap-2">
                   <p className="text-general font-[500] text-[16px] mb-3">
-                    Rewards
+                    Sales
                   </p>
                   <div className="flex gap-9 items-center">
                     <div className="flex items-start gap-3 flex-col">
@@ -416,7 +423,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                         <img src={mTen} alt="" />
                         <div className="flex flex-col items-start gap-1">
                           <p className="text-primary_grey_2 text-[12px] ">
-                            Accumulated Wage Points:
+                            Total sales :
                           </p>
                           <p className="text-general text-[16px] font-[600] ">
                             {data?.wages_point}
@@ -427,7 +434,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                         <img src={mEl} alt="" />
                         <div className="flex flex-col items-start gap-1">
                           <p className="text-primary_grey_2 text-[12px] ">
-                            Total Referral Bonus Earned:
+                            Total revenue from sales :
                           </p>
                           <p className="text-general text-[16px] font-[600] ">
                             {data?.total_referal_balance}
@@ -442,7 +449,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                         />
                         <div className="flex flex-col items-start gap-1">
                           <p className="text-primary_grey_2 text-[12px] ">
-                            Accumulated Wage Points:
+                            Total Profit :
                           </p>
                           <p className="text-general text-[16px] font-[600] ">
                             {data?.referal_count}
@@ -455,7 +462,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                       <div className="flex gap-3 items-center">
                         <div className="flex flex-col items-start gap-1">
                           <p className="text-primary_grey_2 text-[12px] ">
-                            Unclaimed Referral Bonus:
+                            Total revenue from sales :
                           </p>
                           <p className="text-general text-[16px] font-[600] ">
                             {data?.referal_count}
@@ -468,7 +475,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                         onClick={() => setOpenRefreeModal(true)}
                       >
                         <p className="text-primary_green text-[12px] font-[500]">
-                          See Referees
+                          See Rewards
                         </p>
 
                         <ChevronRightOutlinedIcon sx={{ color: "#02981D " }} />
@@ -482,7 +489,7 @@ const MemberProfile = ({ close, memberId, type }) => {
         </Grid>
 
         <Grid item xs={12}>
-          {!data || isLoading ? (
+          {false ? (
             <Skeleton variant="rounded" width="100%" height={250} />
           ) : (
             <CustomCard style="w-full h-full">
@@ -490,7 +497,7 @@ const MemberProfile = ({ close, memberId, type }) => {
                 <div className="flex flex-col items-center">
                   <div className="flex w-full mb-6 justify-between items-center">
                     <p className="text-general text-[16px] font-[500] ">
-                      Recent Transactions
+                      Marketers
                     </p>
 
                     <span className="flex gap-3 items-center cursor-pointer">
