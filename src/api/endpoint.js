@@ -50,7 +50,7 @@ export const transactionsDataUrl = (
   searchValue,
   trxFilter
 ) => {
-  return `/admin/transactions/?page=${currentPage}&limit=${rowsPerPage}&search=${searchValue}&type=${trxFilter}`;
+  return `/transaction/all/?page=${currentPage}&limit=${rowsPerPage}&search=${searchValue}&type=SUBSCRIPTION`;
 };
 export const checkNameForWithdrawalApprovalUrl = (id) => {
   return `/admin/check_name/${id}`;

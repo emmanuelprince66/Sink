@@ -32,6 +32,8 @@ import { notiError } from "../utils/noti";
 import axios from "axios";
 import { AuthAxios } from "../helpers/axiosInstance";
 import { ToastContainer } from "react-toastify";
+import { format } from "date-fns";
+import formattedDate from "../utils/formattedDate";
 const Transactions = () => {
   const {
     handleSubmit,
@@ -52,11 +54,17 @@ const Transactions = () => {
   const [openRequestModal, setOpenRequestModal] = useState(false);
   const [walletCreditModalData, setWalletCreditModalData] = useState(null);
   const [withdrawalModalData, setWithdrawalModalData] = useState(null);
+
   const [openDeclineReqModal, setOpenDeclineReqModal] = useState(false);
   const [buttonLoading, setButtonLoading] = useState(false);
   const closeDeclineReqModal = () => setOpenDeclineReqModal(false);
   const closeOpenRequestModal = () => setOpenRequestModal(false);
   const closeWalletTrxModal = () => setOpenWalletTrxModal(false);
+
+  const [transactionModalData, setTransactionModalData] = useState(null);
+  const [openTrxModal, setOpenTrxModal] = useState(false);
+
+  const closeTrxModal = () => setOpenTrxModal(false);
   const closeWithdrawalModal = () => {
     setShowAcctName(false);
     setWithdrawalModalData(false);
@@ -115,27 +123,34 @@ const Transactions = () => {
     refetch,
   } = useFetchData(queryKey, apiUrl);
 
+  console.log("data", transactionsData);
+
   const totalPages = transactionsData?.pages;
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
   const handleOpenModal = (item) => {
-    switch (item?.type) {
-      case "WALLET-CREDIT":
-        setWalletCreditModalData(item);
-        setOpenWalletTrxModal(true);
-        break;
-      case "DATA_AND_AIRTIME":
-        setWalletCreditModalData(item);
-        setOpenWalletTrxModal(true);
-        break;
-      case "WITHDRAWAL":
-        setWithdrawalModalData(item);
-        setOpenWithdrawalModal(true);
-      default:
-        break;
-    }
+    console.log("item", item);
+
+    setTransactionModalData(item);
+    setOpenTrxModal(true);
+
+    // switch (item?.type) {
+    //   case "WALLET-CREDIT":
+    //     setWalletCreditModalData(item);
+    //     setOpenWalletTrxModal(true);
+    //     break;
+    //   case "DATA_AND_AIRTIME":
+    //     setWalletCreditModalData(item);
+    //     setOpenWalletTrxModal(true);
+    //     break;
+    //   case "WITHDRAWAL":
+    //     setWithdrawalModalData(item);
+    //     setOpenWithdrawalModal(true);
+    //   default:
+    //     break;
+    // }
   };
 
   const handleOpenApproveReq = async (id) => {
@@ -396,17 +411,17 @@ const Transactions = () => {
         </div>
       </CustomCard>
       {/* wallet credit transactions modal */}
-      <CustomModal open={openWalletTrxModal} closeModal={closeWalletTrxModal}>
+      <CustomModal open={openTrxModal} closeModal={closeTrxModal}>
         <div className="w-full flex flex-col items-start gap-2">
           <div className="flex items-center justify-between w-full mb-3">
             <p className="text-general font-[500] text-[20px] ">Transactions</p>
 
             <ClearRoundedIcon
-              onClick={closeWalletTrxModal}
+              onClick={closeTrxModal}
               sx={{ color: "#1E1E1E", cursor: "pointer" }}
             />
           </div>
-          <div className="flex items-center justify-between w-full">
+          {/* <div className="flex items-center justify-between w-full">
             <p className="text-general font-[500] text-[14px] ">USER DETAILS</p>
             <Button
               sx={{
@@ -427,9 +442,9 @@ const Transactions = () => {
             >
               Go to profile
             </Button>
-          </div>
+          </div> */}
 
-          <div className="rounded-md w-full border-[1px] border-[#E3E3E3] p-2 flex flex-col items-start">
+          {/* <div className="rounded-md w-full border-[1px] border-[#E3E3E3] p-2 flex flex-col items-start">
             <div className="w-full flex justify-between mt-1">
               <p className="text-[14px] text-primary_grey_2">User:</p>
               <p className="text-[14px] text-general font-[500]">
@@ -454,7 +469,7 @@ const Transactions = () => {
                 {walletCreditModalData?.phone || ""}
               </p>
             </div>
-          </div>
+          </div> */}
 
           <div className="flex flex-col items-start gap-2 w-full mt-3">
             <p className="text-general font-[500] text-[14px] ">
@@ -463,9 +478,17 @@ const Transactions = () => {
 
             <div className="rounded-md w-full border-[1px] border-[#E3E3E3] p-2 flex flex-col items-start">
               <div className="w-full flex justify-between mt-1">
+                <p className="text-[14px] text-primary_grey_2">User:</p>
+                <p className="text-[14px] text-general font-[500]">
+                  {transactionModalData?.user || ""}{" "}
+                </p>
+              </div>
+              <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
+
+              <div className="w-full flex justify-between mt-1">
                 <p className="text-[14px] text-primary_grey_2">Description:</p>
                 <p className="text-[14px] text-general font-[500]">
-                  Wallet Credit
+                  {transactionModalData?.description || ""}
                 </p>
               </div>
               <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
@@ -473,7 +496,7 @@ const Transactions = () => {
               <div className="w-full flex justify-between">
                 <p className="text-[14px] text-primary_grey_2">Amount:</p>
                 <p className="text-[14px] text-general font-[500]">
-                  <FormattedPrice amount={walletCreditModalData?.amount} />
+                  <FormattedPrice amount={transactionModalData?.amount} />
                 </p>
               </div>
 
@@ -482,7 +505,7 @@ const Transactions = () => {
               <div className="w-full flex justify-between">
                 <p className="text-[14px] text-primary_grey_2">Status:</p>
                 <p className="text-[14px] text-general font-[500]">
-                  {walletCreditModalData?.status || ""}
+                  {transactionModalData?.status || ""}
                 </p>
               </div>
               <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
@@ -490,7 +513,7 @@ const Transactions = () => {
               <div className="w-full flex justify-between">
                 <p className="text-[14px] text-primary_grey_2">Date:</p>
                 <p className="text-[14px] text-general font-[500]">
-                  not sending the date
+                  {formattedDate(transactionModalData?.created_at)}
                 </p>
               </div>
             </div>

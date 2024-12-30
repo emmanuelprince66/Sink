@@ -32,6 +32,7 @@ const TransactionTable = ({
   handleOpenModal,
   page,
 }) => {
+  console.log("transactionsData", transactionsData);
   return (
     <>
       {/* table */}
@@ -53,9 +54,7 @@ const TransactionTable = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {
-              isLoading ||
-              !transactionsData?.results ? (
+              {isLoading || !transactionsData?.data ? (
                 <CircularProgress
                   size="4.2rem"
                   sx={{
@@ -64,10 +63,10 @@ const TransactionTable = ({
                     padding: "1em",
                   }}
                 />
-              ) : transactionsData?.results &&
-                Array.isArray(transactionsData?.results) &&
-                transactionsData?.results?.length > 0 ? (
-                transactionsData?.results?.map((item, i) => (
+              ) : transactionsData?.data &&
+                Array.isArray(transactionsData?.data) &&
+                transactionsData?.data?.length > 0 ? (
+                transactionsData?.data?.map((item, i) => (
                   <TableRow key={item.id}>
                     <TableCell>{page * rowsPerPage + i + 1}</TableCell>
                     <TableCell>
