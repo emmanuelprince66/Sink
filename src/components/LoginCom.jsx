@@ -289,9 +289,9 @@ const LoginCom = ({ setComponent }) => {
               </Grid>
 
               <Button
+                onClick={() => navigate("/overview")}
                 variant="contained"
                 type="submit"
-                disabled={buttonDisabled}
                 sx={{
                   color: "#fff",
                   background: "#02981D",
@@ -302,11 +302,12 @@ const LoginCom = ({ setComponent }) => {
                   },
                 }}
               >
-                {buttonDisabled ? (
+                Login
+                {/* {buttonDisabled ? (
                   <CircularProgress size="1.2rem" sx={{ color: "white" }} />
                 ) : (
                   "Login"
-                )}
+                )} */}
               </Button>
             </form>
           </div>
