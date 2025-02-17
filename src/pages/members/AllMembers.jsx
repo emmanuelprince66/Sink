@@ -44,8 +44,7 @@ const AllMembers = ({
   console.log("data", data);
 
   const handleNavigateMerchant = (id) => {
-    setShowComp("profile");
-    setMemberId(id);
+    navigate(`/member/${id}`);
   };
 
   const handleSearchChange = (e) => {

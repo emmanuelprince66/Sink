@@ -18,6 +18,7 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 import Investment from "./pages/investments/Investment";
 import Transactions from "./pages/Transactions";
 import Rmerchant from "./pages/r-merchant/Rmerchant";
+import MemberProfile from "./pages/members/MemberProfile";
 
 const theme = createTheme({
   typography: {
@@ -35,6 +36,11 @@ const RoutesContainer = () => {
     { component: <Transactions />, path: "/transactions", name: "Transaction" },
     { component: <Loans />, path: "/loans", name: "Loans" },
     { component: <Rmerchant />, path: "/r-merchant", name: "Rmerchant" },
+    {
+      component: <MemberProfile />,
+      path: "/member/:id",
+      name: "MemberProfile",
+    },
     {
       component: <Notifications />,
       path: "/notifications",

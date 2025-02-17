@@ -8,7 +8,8 @@ export const allMembersUrl = (
 };
 
 export const overveiwUrl = (selectedDates) => {
-  return `/admin/overview/?start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
+  return `/profile/overview/?start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
+  x;
 };
 
 export const corporativeDataUrl = () => {
@@ -50,7 +51,7 @@ export const transactionsDataUrl = (
   searchValue,
   trxFilter
 ) => {
-  return `/transaction/all/?page=${currentPage}&limit=${rowsPerPage}&search=${searchValue}&type=SUBSCRIPTION`;
+  return `/transaction/all/?page=${currentPage}&limit=${rowsPerPage}&search=${searchValue}&type=${trxFilter}`;
 };
 export const checkNameForWithdrawalApprovalUrl = (id) => {
   return `/admin/check_name/${id}`;

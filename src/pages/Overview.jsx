@@ -19,6 +19,8 @@ const Overview = () => {
   const queryKey = ["fetchOverveiwData", apiUrl];
   const { data, error, isLoading } = useFetchData(queryKey, apiUrl);
 
+  console.log("overview --da", data);
+
   // cooperative card
   const CustomCorporativeCard = ({ text, amt }) => {
     return (
@@ -140,13 +142,13 @@ const Overview = () => {
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">All-time:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  {data?.all_user_count}
+                  {data?.total_merchants}
                 </p>
               </div>
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">By Filter:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  {data?.filter_user_count}
+                  {data?.filtered_merchants}
                 </p>
               </div>
             </div>
@@ -167,13 +169,13 @@ const Overview = () => {
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">All-time:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  {data?.all_user_count}
+                  {data?.total_subscriptions}
                 </p>
               </div>
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">By Filter:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  {data?.filter_user_count}
+                  {data?.filtered_subscriptions}
                 </p>
               </div>
             </div>
@@ -194,13 +196,15 @@ const Overview = () => {
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">All-time:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  {data?.all_user_count}
+                  <FormattedPrice
+                    amount={data?.total_subscription_amount || 0}
+                  />
                 </p>
               </div>
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">By Filter:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  {data?.filter_user_count}
+                  {data?.filtered_subscription_amount}
                 </p>
               </div>
             </div>

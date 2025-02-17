@@ -3,7 +3,7 @@ import { getCookie, setCookie } from "../utils/cookieAuth";
 
 // Axios instance for API calls
 export const AuthAxios = Axios.create({
-  baseURL: "https://sync-admin.mycliq.tech/api/v1/",
+  baseURL: " https://staging-admin-api.sync360.africa/api/v1/",
   withCredentials: false,
 });
 
@@ -11,7 +11,7 @@ export const AuthAxios = Axios.create({
 
 // Axios instance for authentication related calls
 export const BaseAxios = Axios.create({
-  baseURL: "https://sync-admin.mycliq.tech/api/v1/",
+  baseURL: "https://staging-admin-api.sync360.africa/api/v1/",
   withCredentials: false,
 });
 

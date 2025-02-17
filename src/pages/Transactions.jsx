@@ -44,7 +44,7 @@ const Transactions = () => {
   } = useForm({ mode: "all" });
   const status = watch("status", "Pending");
   const statusOptions = ["Pending", "Successfull", "Failed"];
-  const [trxFilter, setTrxFilter] = useState("");
+  const [trxFilter, setTrxFilter] = useState("SUBSCRIPTION");
   const [openWalletTrxModal, setOpenWalletTrxModal] = useState(false);
   const [openSuccessModal, setOpenSuccessModal] = useState(false);
   const [openWTrxModal, setWOpenTrxModal] = useState(false);

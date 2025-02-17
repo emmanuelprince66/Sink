@@ -77,7 +77,7 @@ const TransactionTable = ({
                           color: "#5E5E5E",
                         }}
                       >
-                        {item?.lastname} {item?.firstname}
+                        {item?.user}
                       </Typography>
                     </TableCell>
                     <TableCell>{item?.description}</TableCell>
