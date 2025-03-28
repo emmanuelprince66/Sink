@@ -77,6 +77,8 @@ const MemberProfile = ({ setShowComp }) => {
 
   const { data, error, isLoading } = useFetchData(queryKey, apiUrl);
 
+  console.log("data--k", data);
+
   const [showFullUserTransactions, setShowFullUserTransactions] =
     useState(false);
 
@@ -269,6 +271,60 @@ const MemberProfile = ({ setShowComp }) => {
                           </div>
                         </div>
                         <div className="flex gap-3 items-center mb-2">
+                          <img src={mNine} alt="" />
+                          <div className="flex flex-col items-start gap-2">
+                            <p className="text-primary_grey_2 text-[12px] ">
+                              Business Name
+                            </p>
+                            <p className="text-general text-[16px]">--</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 items-center mb-2">
+                          <img src={mNine} alt="" />
+                          <div className="flex flex-col items-start gap-2">
+                            <p className="text-primary_grey_2 text-[12px] ">
+                              Business Type
+                            </p>
+                            <p className="text-general text-[16px]">--- </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 items-center mb-2">
+                          <img src={mNine} alt="" />
+                          <div className="flex flex-col items-start gap-2">
+                            <p className="text-primary_grey_2 text-[12px] ">
+                              Country
+                            </p>
+                            <p className="text-general text-[16px]">--- </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 items-center mb-2">
+                          <img src={mNine} alt="" />
+                          <div className="flex flex-col items-start gap-2">
+                            <p className="text-primary_grey_2 text-[12px] ">
+                              State
+                            </p>
+                            <p className="text-general text-[16px]">--- </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 items-center mb-2">
+                          <img src={mNine} alt="" />
+                          <div className="flex flex-col items-start gap-2">
+                            <p className="text-primary_grey_2 text-[12px] ">
+                              Town
+                            </p>
+                            <p className="text-general text-[16px]">--- </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 items-center mb-2">
+                          <img src={mNine} alt="" />
+                          <div className="flex flex-col items-start gap-2">
+                            <p className="text-primary_grey_2 text-[12px] ">
+                              Daily Active Appearance
+                            </p>
+                            <p className="text-general text-[16px]">--- </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 items-center mb-2">
                           <img src={mFour} alt="" />
                           <div className="flex flex-col items-start gap-2">
                             <p className="text-primary_grey_2 text-[12px] ">
@@ -441,14 +497,14 @@ const MemberProfile = ({ setShowComp }) => {
                 ) : (
                   <CustomCard style="w-full h-full">
                     <div className="w-full flex items-start flex-col gap-2">
-                      <p className="text-general font-[500] text-[16px] mb-3">
+                      {/* <p className="text-general font-[500] text-[16px] mb-3">
                         Savings, Investment & Loan Portfolio
-                      </p>
+                      </p> */}
 
                       <div className="w-full flex justify-between items-center">
                         <div className="flex-col flex items-start gap-1">
                           <p className="text-[14px] text-primary_grey_2">
-                            Total Corporative Savings :
+                            Inventory Value :
                           </p>
                           <p className="text-general font-[600] text-[24px] ">
                             <FormattedPrice amount={data?.total_coop_savings} />
@@ -469,7 +525,7 @@ const MemberProfile = ({ setShowComp }) => {
                         <div className="min-h-[5rem] w-[1px] bg-[#E3E3E3]"></div>
                         <div className="flex-col flex items-start gap-1">
                           <p className="text-[14px] text-primary_grey_2">
-                            Total Personal Savings :
+                            Total Product :
                           </p>
                           <p className="text-general font-[600] text-[24px] ">
                             <FormattedPrice amount={data?.total_savings} />
@@ -492,7 +548,7 @@ const MemberProfile = ({ setShowComp }) => {
                       <div className="w-full flex justify-between items-center">
                         <div className="flex-col flex items-start gap-1 mt-4">
                           <p className="text-[14px] text-primary_grey_2">
-                            Outstanding Loan: :
+                            Total Expenses :
                           </p>
                           <p className="text-primary_red font-[600] text-[24px] ">
                             <FormattedPrice amount={data?.outstanding_loan} />
@@ -509,7 +565,7 @@ const MemberProfile = ({ setShowComp }) => {
 
                         <div className="flex-col flex items-start gap-1">
                           <p className="text-[14px] text-primary_grey_2">
-                            Total Investment Value :
+                            Total Sales :
                           </p>
                           <p className="text-general font-[600] text-[24px] ">
                             <FormattedPrice amount={data?.total_investment} />
@@ -537,7 +593,7 @@ const MemberProfile = ({ setShowComp }) => {
                   <CustomCard style="w-full h-full">
                     <div className="w-full flex items-start flex-col gap-2">
                       <p className="text-general font-[500] text-[16px] mb-3">
-                        Rewards
+                        Campaign
                       </p>
                       <div className="flex gap-9 items-center">
                         <div className="flex items-start gap-3 flex-col">
@@ -545,7 +601,7 @@ const MemberProfile = ({ setShowComp }) => {
                             <img src={mTen} alt="" />
                             <div className="flex flex-col items-start gap-1">
                               <p className="text-primary_grey_2 text-[12px] ">
-                                Accumulated Wage Points:
+                                Units Left:
                               </p>
                               <p className="text-general text-[16px] font-[600] ">
                                 {data?.wages_point}
@@ -556,7 +612,7 @@ const MemberProfile = ({ setShowComp }) => {
                             <img src={mEl} alt="" />
                             <div className="flex flex-col items-start gap-1">
                               <p className="text-primary_grey_2 text-[12px] ">
-                                Total Referral Bonus Earned:
+                                Total SMS Sent:
                               </p>
                               <p className="text-general text-[16px] font-[600] ">
                                 {data?.total_referal_balance}
@@ -571,7 +627,7 @@ const MemberProfile = ({ setShowComp }) => {
                             />
                             <div className="flex flex-col items-start gap-1">
                               <p className="text-primary_grey_2 text-[12px] ">
-                                Accumulated Wage Points:
+                                Total Amount:
                               </p>
                               <p className="text-general text-[16px] font-[600] ">
                                 {data?.referal_count}
@@ -584,7 +640,7 @@ const MemberProfile = ({ setShowComp }) => {
                           <div className="flex gap-3 items-center">
                             <div className="flex flex-col items-start gap-1">
                               <p className="text-primary_grey_2 text-[12px] ">
-                                Unclaimed Referral Bonus:
+                                Total Users SMS:
                               </p>
                               <p className="text-general text-[16px] font-[600] ">
                                 {data?.referal_count}
@@ -592,7 +648,7 @@ const MemberProfile = ({ setShowComp }) => {
                             </div>
                           </div>
 
-                          <span
+                          {/* <span
                             className="flex gap-3 items-center cursor-pointer"
                             onClick={() => setOpenRefreeModal(true)}
                           >
@@ -603,7 +659,7 @@ const MemberProfile = ({ setShowComp }) => {
                             <ChevronRightOutlinedIcon
                               sx={{ color: "#02981D " }}
                             />
-                          </span>
+                          </span> */}
                         </div>
                       </div>
                     </div>

@@ -97,17 +97,17 @@ const AllMembers = ({
               <Button
                 onClick={() => setPlanValue("")}
                 sx={{
-                  background: planValue === "" ? "#FAFAFA" : "#fff",
+                  background: planValue === "ALL" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    planValue === ""
+                    planValue === "ALL"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
                   color: planValue === "" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
-                    backgroundColor: planValue === "" ? "#FAFAFA" : "#fff",
+                    backgroundColor: planValue === "ALL" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -116,20 +116,19 @@ const AllMembers = ({
                 All Merchants
               </Button>
               <Button
-                onClick={() => setPlanValue("Free Trial")}
+                onClick={() => setPlanValue("TRIAL")}
                 sx={{
-                  background: planValue === "Free Trial" ? "#FAFAFA" : "#fff",
+                  background: planValue === "TRIAL" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    planValue === "Free Trial"
+                    planValue === "TRIAL"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: planValue === "Free Trial" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "TRIAL" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
-                    backgroundColor:
-                      planValue === "Free Trial" ? "#FAFAFA" : "#fff",
+                    backgroundColor: planValue === "TRIAL" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -138,20 +137,20 @@ const AllMembers = ({
                 Free Trial
               </Button>
               <Button
-                onClick={() => setPlanValue("Basic Plan")}
+                onClick={() => setPlanValue("STARTER")}
                 sx={{
-                  background: planValue === "Basic Plan" ? "#FAFAFA" : "#fff",
+                  background: planValue === "STARTER" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    planValue === "Basic Plan"
+                    planValue === "STARTER"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: planValue === "Basic Plan" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "STARTER" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      planValue === "Basic Plan" ? "#FAFAFA" : "#fff",
+                      planValue === "STARTER" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -161,20 +160,20 @@ const AllMembers = ({
               </Button>
 
               <Button
-                onClick={() => setPlanValue("Sync Plus")}
+                onClick={() => setPlanValue("SYNC-PLUS")}
                 sx={{
-                  background: planValue === "Sync Plus" ? "#FAFAFA" : "#fff",
+                  background: planValue === "SYNC-PLUS" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    planValue === "Sync Plus"
+                    planValue === "SYNC-PLUS"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: planValue === "Sync Plus" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "SYNC-PLUS" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      planValue === "Sync Plus" ? "#FAFAFA" : "#fff",
+                      planValue === "SYNC-PLUS" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -183,9 +182,9 @@ const AllMembers = ({
                 Sync Plus
               </Button>
               <Button
-                onClick={() => setPlanValue("Sync Pro")}
+                onClick={() => setPlanValue("SYNC-PRO")}
                 sx={{
-                  background: planValue === "Sync Pro" ? "#FAFAFA" : "#fff",
+                  background: planValue === "SYNC-PRO" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
@@ -193,10 +192,10 @@ const AllMembers = ({
                     planValue === "Sync Pro"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
-                  color: planValue === "Sync Pro" ? "#02981D" : "#5E5E5E",
+                  color: planValue === "SYNC-PRO" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      planValue === "Sync Pro" ? "#FAFAFA" : "#fff",
+                      planValue === "SYNC-PRO" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -205,20 +204,20 @@ const AllMembers = ({
                 Sync Pro
               </Button>
               <Button
-                onClick={() => setPlanValue("Inactive")}
+                onClick={() => setPlanValue("EXPIRED")}
                 sx={{
-                  background: planValue === "Inactive" ? "#FAFAFA" : "#fff",
+                  background: planValue === "EXPIRED" ? "#FAFAFA" : "#fff",
                   borderRadius: "8px",
                   width: "100%",
                   px: "15px",
                   border:
-                    planValue === "Inactive"
+                    planValue === "EXPIRED"
                       ? "1px solid #02981D"
                       : "1px solid #5E5E5E",
                   color: planValue === "Sync Pro" ? "#02981D" : "#5E5E5E",
                   "&:hover": {
                     backgroundColor:
-                      planValue === "Inactive" ? "#FAFAFA" : "#fff",
+                      planValue === "EXPIRED" ? "#FAFAFA" : "#fff",
                   },
                   textTransform: "capitalize",
                   fontWeight: "400",
@@ -241,10 +240,15 @@ const AllMembers = ({
                   >
                     <TableRow>
                       <TableCell>S/N</TableCell>
-                      <TableCell> Name</TableCell>
+                      <TableCell> Name oF business</TableCell>
                       <TableCell>Phone Number</TableCell>
+
+                      <TableCell>Subscription Duration</TableCell>
+                      <TableCell>Subscription Amount</TableCell>
+
                       <TableCell>Email Address</TableCell>
                       <TableCell>Membership Status</TableCell>
+
                       <TableCell>Action</TableCell>
                     </TableRow>
                   </TableHead>
@@ -285,6 +289,24 @@ const AllMembers = ({
                             >
                               {item?.phone}
                             </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              sx={{
+                                fontWeight: "400",
+                                fontSize: "16px",
+                                color: "#828282",
+                              }}
+                            ></Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              sx={{
+                                fontWeight: "400",
+                                fontSize: "16px",
+                                color: "#828282",
+                              }}
+                            ></Typography>
                           </TableCell>
                           <TableCell>{item?.email}</TableCell>
                           <TableCell>

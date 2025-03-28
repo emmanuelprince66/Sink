@@ -22,7 +22,7 @@ export const targetSavingsUrl = () => {
   return "/admin/savings_stats";
 };
 export const membersProfileUrl = (memberId) => {
-  return `/merchant/user/${memberId}`;
+  return `/merchant/user/${memberId}/`;
 };
 export const investmentListDataUrl = (filterValue, selectedDates) => {
   return `/admin/investment_stats/?status=${filterValue}&start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;

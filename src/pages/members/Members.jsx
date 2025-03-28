@@ -11,7 +11,7 @@ const Members = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [planValue, setPlanValue] = useState("TRIAL");
+  const [planValue, setPlanValue] = useState("ALL");
   const [searchValue, setSearchValue] = useState("");
 
   const apiUrl = allMembersUrl(
