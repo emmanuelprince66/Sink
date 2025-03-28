@@ -55,7 +55,7 @@ const Referrals = () => {
           <Skeleton variant="rounded" width="100%" height={147} />
         ) : (
           <CustomReferralCard
-            text="Total Marketers(All-Time)"
+            text="Total Parners"
             amt={referralData?.results?.total_referrals}
           />
         )}
@@ -63,7 +63,7 @@ const Referrals = () => {
           <Skeleton variant="rounded" width="100%" height={147} />
         ) : (
           <CustomReferralCard
-            text="Total Onboarded(By-Filter)"
+            text="Total Referral Businesses"
             amt={referralData?.results?.filtered_referrals}
           />
         )}
@@ -71,7 +71,7 @@ const Referrals = () => {
           <Skeleton variant="rounded" width="100%" height={147} />
         ) : (
           <CustomReferralCard
-            text="Total Amount Paid To Marketer"
+            text="Unpaid Commission"
             amt={
               <FormattedPrice
                 amount={referralData?.results?.total_referral_balance_sum}
@@ -83,7 +83,7 @@ const Referrals = () => {
           <Skeleton variant="rounded" width="100%" height={147} />
         ) : (
           <CustomReferralCard
-            text="Total Upcoming Payment"
+            text="Paid Commission"
             amt={
               <FormattedPrice
                 amount={referralData?.results?.total_referral_balance_sum}

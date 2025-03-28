@@ -54,10 +54,11 @@ const ReferralTable = ({
             >
               <TableRow>
                 <TableCell>S/N</TableCell>
-                <TableCell> Name</TableCell>
-                <TableCell>Level</TableCell>
-                <TableCell>Total Merchant Onboarded</TableCell>
-                <TableCell>Total Earned</TableCell>
+                <TableCell> Partner Name</TableCell>
+                <TableCell>Total Business</TableCell>
+                <TableCell>Total Commission</TableCell>
+                <TableCell>Payment status [Paid/pending]</TableCell>
+                <TableCell>Pay</TableCell>
                 <TableCell>Action</TableCell>
               </TableRow>
             </TableHead>
