@@ -1,15 +1,13 @@
-import React from "react";
-import SelectDate from "../components/SelectDate";
-import { Button } from "@mui/material";
-import CustomCard from "../components/CustomCard";
+import { Skeleton } from "@mui/material";
+import { overveiwUrl } from "../api/endpoint";
 import oOne from "../assets/overview/o-1.svg";
 import oTwo from "../assets/overview/o-2.svg";
 import oThree from "../assets/overview/o-3.svg";
-import { Skeleton } from "@mui/material";
+import CustomCard from "../components/CustomCard";
+import SelectDate from "../components/SelectDate";
+import useFetchData from "../hooks/useFetchData";
 import { useDateContext } from "../utils/DateContext";
 import FormattedPrice from "../utils/FormattedPrice";
-import { overveiwUrl } from "../api/endpoint";
-import useFetchData from "../hooks/useFetchData";
 
 const Overview = () => {
   const { selectedDates } = useDateContext();
@@ -214,7 +212,7 @@ const Overview = () => {
 
       {/* corporative data analytics */}
 
-      <div className="w-full rounded-md border-[1px] border-[#E3E3E3] mt-5 p-3 flex flex-col gap-2">
+      {/* <div className="w-full rounded-md border-[1px] border-[#E3E3E3] mt-5 p-3 flex flex-col gap-2">
         <p className="text-general font-[500] text-[16px]">Cooperative</p>
 
         <div className="flex justify-between gap-3 items-center w-full mt-4">
@@ -244,11 +242,11 @@ const Overview = () => {
             />
           )}
         </div>
-      </div>
+      </div> */}
 
       {/* loan data analytics */}
 
-      <div className="w-full rounded-md border-[1px] border-[#E3E3E3] mt-5 p-3 flex flex-col gap-2">
+      {/* <div className="w-full rounded-md border-[1px] border-[#E3E3E3] mt-5 p-3 flex flex-col gap-2">
         <p className="text-general font-[500] text-[16px]">Loan</p>
 
         <div className="flex justify-between gap-3 items-center w-full mt-4">
@@ -282,7 +280,7 @@ const Overview = () => {
             />
           )}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

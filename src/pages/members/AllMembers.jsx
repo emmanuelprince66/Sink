@@ -1,29 +1,19 @@
-import React from "react";
-import CustomCard from "../../components/CustomCard";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import { Button } from "@mui/material";
-import { useState } from "react";
 import {
-  Table,
   Box,
+  Button,
+  CircularProgress,
+  Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress,
-  Paper,
-  Grid,
-  Container,
-  TextField,
-  TablePagination,
-  ToggleButtonGroup,
-  ToggleButton,
-  Card,
   Typography,
-  Modal,
 } from "@mui/material";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import CustomCard from "../../components/CustomCard";
 import CustomPagination from "../../components/CustomPagination";
 const AllMembers = ({
   searchValue,
@@ -240,15 +230,15 @@ const AllMembers = ({
                   >
                     <TableRow>
                       <TableCell>S/N</TableCell>
-                      <TableCell> Name oF business</TableCell>
+                      <TableCell> Business Name</TableCell>
+                      <TableCell> Tier One </TableCell>
+                      <TableCell> Account Balance </TableCell>
                       <TableCell>Phone Number</TableCell>
-
                       <TableCell>Subscription Duration</TableCell>
                       <TableCell>Subscription Amount</TableCell>
-
                       <TableCell>Email Address</TableCell>
                       <TableCell>Membership Status</TableCell>
-
+                      <TableCell>Membership Type</TableCell>
                       <TableCell>Action</TableCell>
                     </TableRow>
                   </TableHead>
@@ -287,6 +277,28 @@ const AllMembers = ({
                                 color: "#828282",
                               }}
                             >
+                              {"-"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              sx={{
+                                fontWeight: "400",
+                                fontSize: "16px",
+                                color: "#828282",
+                              }}
+                            >
+                              {"-"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              sx={{
+                                fontWeight: "400",
+                                fontSize: "16px",
+                                color: "#828282",
+                              }}
+                            >
                               {item?.phone}
                             </Typography>
                           </TableCell>
@@ -297,7 +309,9 @@ const AllMembers = ({
                                 fontSize: "16px",
                                 color: "#828282",
                               }}
-                            ></Typography>
+                            >
+                              -
+                            </Typography>
                           </TableCell>
                           <TableCell>
                             <Typography
@@ -306,9 +320,12 @@ const AllMembers = ({
                                 fontSize: "16px",
                                 color: "#828282",
                               }}
-                            ></Typography>
+                            >
+                              -
+                            </Typography>
                           </TableCell>
                           <TableCell>{item?.email}</TableCell>
+
                           <TableCell>
                             <Typography
                               sx={{
@@ -333,6 +350,17 @@ const AllMembers = ({
                                 <span className="w-[10px] h-[10px] rounded-full  bg-[#E52929]" />
                               )}
                               {item?.is_active ? "Active" : "Inactive"}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              sx={{
+                                fontWeight: "400",
+                                fontSize: "16px",
+                                color: "#828282",
+                              }}
+                            >
+                              -
                             </Typography>
                           </TableCell>
                           <TableCell>

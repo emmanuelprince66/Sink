@@ -1,949 +1,1205 @@
-import React, { useEffect, useState } from "react";
-import SelectDate from "../components/SelectDate";
-import CustomCard from "../components/CustomCard";
-import { useForm, Controller } from "react-hook-form";
-import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
-import tOne from "../assets/transactions/t-1.svg";
-import tTwo from "../assets/transactions/t-2.svg";
-import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
 import {
-  FormControlLabel,
-  Radio,
-  RadioGroup,
-  FormControl,
+  CheckRounded as CheckRoundedIcon,
+  ClearRounded as ClearRoundedIcon,
+  SearchOutlined as SearchOutlinedIcon,
+} from "@mui/icons-material";
+import {
+  Box,
   Button,
+  Card,
+  CardContent,
+  CircularProgress,
   Divider,
+  Grid,
+  InputAdornment,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
 } from "@mui/material";
-import CircularProgress from "@mui/material/CircularProgress";
-import CustomModal from "../components/CustomModal";
-import CustomSuccessRequestModal from "../components/CustomSuccessRequestModal";
-import CustomSuccessModal from "../components/CustomSuccessModal";
-import CustomPagination from "../components/CustomPagination";
-import { transactionsDataUrl } from "../api/endpoint";
-import { acceptWithdrawalUrl } from "../api/endpoint";
-import useFetchData from "../hooks/useFetchData";
-import FormattedPrice from "../utils/FormattedPrice";
-import TransactionTable from "./transactions/TransactionTable";
-import Referrals from "./transactions/Referrals";
-import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
-import DeclineModal from "./transactions/DeclineModal";
-import { checkNameForWithdrawalApprovalUrl } from "../api/endpoint";
-import { notiError } from "../utils/noti";
-import axios from "axios";
-import { AuthAxios } from "../helpers/axiosInstance";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { ToastContainer } from "react-toastify";
-import { format } from "date-fns";
+import CampaignUnit from "./transactions/CampaignUnit";
+import Funding from "./transactions/Funding";
+import Subscription from "./transactions/Subscription";
+// Components and Utils
+import CustomCard from "../components/CustomCard";
+import CustomModal from "../components/CustomModal";
+import CustomSuccessModal from "../components/CustomSuccessModal";
+import CustomSuccessRequestModal from "../components/CustomSuccessRequestModal";
+import SelectDate from "../components/SelectDate";
+import DeclineModal from "./transactions/DeclineModal";
+import PaymentTable from "./transactions/PaymentTable";
+import Referrals from "./transactions/Referrals";
+import TransactionTable from "./transactions/TransactionTable";
+
+// API and Hooks
+import {
+  acceptWithdrawalUrl,
+  checkNameForWithdrawalApprovalUrl,
+  transactionsDataUrl,
+} from "../api/endpoint";
+import { AuthAxios } from "../helpers/axiosInstance";
+import useFetchData from "../hooks/useFetchData";
+
+// Utils and Assets
+import tOne from "../assets/transactions/t-1.svg";
+import FormattedPrice from "../utils/FormattedPrice";
 import formattedDate from "../utils/formattedDate";
-const Transactions = () => {
-  const {
-    handleSubmit,
-    control,
-    watch,
-    register,
-    formState: { isValid, errors },
-  } = useForm({ mode: "all" });
-  const status = watch("status", "Pending");
-  const statusOptions = ["Pending", "Successfull", "Failed"];
-  const [trxFilter, setTrxFilter] = useState("SUBSCRIPTION");
-  const [openWalletTrxModal, setOpenWalletTrxModal] = useState(false);
-  const [openSuccessModal, setOpenSuccessModal] = useState(false);
-  const [openWTrxModal, setWOpenTrxModal] = useState(false);
-  const [openWidthdrawalModal, setOpenWithdrawalModal] = useState(false);
-  const [sessionId, setSessionId] = useState("");
-  const [isPosting, setIsPosting] = useState(false);
-  const [openRequestModal, setOpenRequestModal] = useState(false);
-  const [walletCreditModalData, setWalletCreditModalData] = useState(null);
-  const [withdrawalModalData, setWithdrawalModalData] = useState(null);
+import { notiError } from "../utils/noti";
 
-  const [openDeclineReqModal, setOpenDeclineReqModal] = useState(false);
-  const [buttonLoading, setButtonLoading] = useState(false);
-  const closeDeclineReqModal = () => setOpenDeclineReqModal(false);
-  const closeOpenRequestModal = () => setOpenRequestModal(false);
-  const closeWalletTrxModal = () => setOpenWalletTrxModal(false);
+// Constants
+const TRANSACTION_TABS = {
+  PAYMENT: 0,
+  SUBSCRIPTION: 1,
+  MARKETING: 2,
+};
 
-  const [transactionModalData, setTransactionModalData] = useState(null);
-  const [openTrxModal, setOpenTrxModal] = useState(false);
+const MARKETING_TABS = {
+  FUNDING: 0,
+  CAMPAIGNS: 1,
+};
 
-  const closeTrxModal = () => setOpenTrxModal(false);
-  const closeWithdrawalModal = () => {
-    setShowAcctName(false);
-    setWithdrawalModalData(false);
-  };
+const FILTER_OPTIONS = [
+  { key: "", label: "All Transactions", isDefault: true },
+  { key: "WALLET-CREDIT", label: "Wallet Credit" },
+  { key: "DATA_AND_AIRTIME", label: "Data Purchase" },
+  { key: "WITHDRAWAL", label: "Withdrawal" },
+  { key: "referral", label: "Referral" },
+];
 
-  const [showAcctName, setShowAcctName] = useState(false);
+const STATUS_OPTIONS = ["Pending", "Successful", "Failed"];
 
-  const [approveWithId, setApproveWithId] = useState("");
-  const closeSuccessModal = () => setOpenSuccessModal(false);
-  const [declineId, setDeclineId] = useState("");
-  const closeWTrxModal = () => setWOpenTrxModal(false);
+// Custom Hooks
+const useTransactionState = () => {
+  const [activeTab, setActiveTab] = useState(TRANSACTION_TABS.PAYMENT);
+  const [marketingTab, setMarketingTab] = useState(MARKETING_TABS.FUNDING);
+  const [searchValue, setSearchValue] = useState("");
+  const [trxFilter, setTrxFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(100);
   const [page, setPage] = useState(0);
 
-  const apiUrlName = checkNameForWithdrawalApprovalUrl(approveWithId);
-  const queryKeyName = ["checkNameForWithdrawalApproval", apiUrlName];
-
-  const {
-    data: checkedName,
-    error,
-    isLoading: isCheckNameLoading,
-  } = useFetchData(queryKeyName, apiUrlName);
-
-  const handleShowAcctName = (id) => {
-    console.log("id", id);
-    setShowAcctName(!showAcctName);
-  };
-
-  console.log("show", showAcctName);
-
-  const handleOpenDeclineReqModal = (id) => {
-    console.log(id);
-    setDeclineId(id);
-    setOpenDeclineReqModal(true);
-    closeWithdrawalModal();
-  };
-
-  const [filteredTrxData, setFilteredTrxData] = useState(null);
-
-  const [rowsPerPage, setRowsPerPage] = useState(100);
-  const [filterValue, setFilterValue] = useState("");
-  const [searchValue, setSearchValue] = useState("");
-
-  const apiUrl = transactionsDataUrl(
-    currentPage,
-    rowsPerPage,
+  return {
+    activeTab,
+    setActiveTab,
+    marketingTab,
+    setMarketingTab,
     searchValue,
-    trxFilter
-  );
-  const queryKey = ["fetchTransactionData", apiUrl, trxFilter, searchValue];
-  // fetch referral data
+    setSearchValue,
+    trxFilter,
+    setTrxFilter,
+    currentPage,
+    setCurrentPage,
+    rowsPerPage,
+    setRowsPerPage,
+    page,
+    setPage,
+  };
+};
 
+const useModalState = () => {
+  const [modals, setModals] = useState({
+    transaction: false,
+    withdrawal: false,
+    success: false,
+    request: false,
+    decline: false,
+  });
+
+  const [modalData, setModalData] = useState({
+    transaction: null,
+    withdrawal: null,
+  });
+
+  const openModal = (modalName, data = null) => {
+    setModals((prev) => ({ ...prev, [modalName]: true }));
+    if (data) {
+      setModalData((prev) => ({
+        ...prev,
+        [modalName.replace("Modal", "")]: data,
+      }));
+    }
+  };
+
+  const closeModal = (modalName) => {
+    setModals((prev) => ({ ...prev, [modalName]: false }));
+    if (modalName !== "success" && modalName !== "request") {
+      setModalData((prev) => ({
+        ...prev,
+        [modalName.replace("Modal", "")]: null,
+      }));
+    }
+  };
+
+  return { modals, modalData, openModal, closeModal };
+};
+
+// Components
+const TransactionHeader = ({ onDateChange }) => (
+  <div className="w-full flex items-center justify-between mb-2">
+    <h1 className="font-semibold text-xl text-gray-900">Transactions</h1>
+    <SelectDate onChange={onDateChange} />
+  </div>
+);
+
+const SearchAndExport = ({ searchValue, onSearchChange }) => (
+  <div className="w-full flex items-center justify-between mb-4">
+    <TextField
+      value={searchValue}
+      onChange={(e) => onSearchChange(e.target.value)}
+      placeholder="Search member, ID"
+      size="small"
+      sx={{ width: "50%" }}
+      InputProps={{
+        startAdornment: (
+          <InputAdornment position="start">
+            <SearchOutlinedIcon sx={{ color: "#757575" }} />
+          </InputAdornment>
+        ),
+      }}
+    />
+
+    <Button
+      sx={{
+        background: "#FAFAFA",
+        borderRadius: "8px",
+        px: 3,
+        border: "1px solid #C8C8C8",
+        color: "#02981D",
+        "&:hover": { backgroundColor: "#FAFAFA" },
+        textTransform: "capitalize",
+        fontWeight: 600,
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+      }}
+    >
+      <img src={tOne} alt="export" />
+      Export
+    </Button>
+  </div>
+);
+
+const FilterButtons = ({ activeFilter, onFilterChange, activeTab }) => {
+  // Filter options based on active tab
+  const getFilterOptions = () => {
+    if (activeTab === TRANSACTION_TABS.PAYMENT) {
+      return FILTER_OPTIONS.filter((option) => option.key !== "referral");
+    }
+    return FILTER_OPTIONS; // For subscription tab, show all options
+  };
+
+  const filterOptions = getFilterOptions();
+
+  return (
+    <div className="flex gap-3 items-center mb-6 flex-wrap">
+      {filterOptions.map((option) => (
+        <Button
+          key={option.key}
+          onClick={() => onFilterChange(option.key)}
+          sx={{
+            background: activeFilter === option.key ? "#FAFAFA" : "#fff",
+            borderRadius: "8px",
+            px: 3,
+            py: 1,
+            border:
+              activeFilter === option.key
+                ? "1px solid #02981D"
+                : "1px solid #C8C8C8",
+            color: activeFilter === option.key ? "#02981D" : "#5E5E5E",
+            "&:hover": {
+              backgroundColor:
+                activeFilter === option.key ? "#FAFAFA" : "#f5f5f5",
+            },
+            textTransform: "capitalize",
+            fontWeight: 400,
+            minWidth: "auto",
+          }}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
+  );
+};
+
+// Payment Transaction Cards Component
+const PaymentCards = () => {
+  // Mock data - replace with actual API data
+  const paymentData = {
+    totalInflow: 125000000, // in cents/kobo
+    totalOutflow: 85000000,
+    totalWalletBalance: 40000000,
+    totalProfit: 15000000,
+  };
+
+  return (
+    <Grid container spacing={3} className="mb-6">
+      <Grid item xs={12} sm={6} md={3}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Inflow
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              <FormattedPrice amount={paymentData.totalInflow} />
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Money received
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid item xs={12} sm={6} md={3}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Outflow
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              <FormattedPrice amount={paymentData.totalOutflow} />
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Money sent out
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid item xs={12} sm={6} md={3}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Wallet Balance
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              <FormattedPrice amount={paymentData.totalWalletBalance} />
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Available balance
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid item xs={12} sm={6} md={3}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Profit
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              <FormattedPrice amount={paymentData.totalProfit} />
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Net profit earned
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  );
+};
+
+// Subscription Cards Component
+const SubscriptionCards = () => {
+  // Mock data - replace with actual API data
+  const subscriptionData = {
+    totalSubscribedUsers: 1250,
+    totalSubscriptionAmount: 45000000, // in cents/kobo
+  };
+
+  return (
+    <Grid container spacing={3} className="mb-6">
+      <Grid item xs={12} md={6}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Subscribed Users
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              {subscriptionData.totalSubscribedUsers.toLocaleString()}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Active subscribers
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid item xs={12} md={6}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Subscription Amount
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              <FormattedPrice
+                amount={subscriptionData.totalSubscriptionAmount}
+              />
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Revenue generated
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  );
+};
+
+// Marketing Automation Cards Component
+const MarketingCards = () => {
+  // Mock data - replace with actual API data
+  const marketingData = {
+    totalCredit: 85000000, // in cents/kobo
+    totalFunding: 120000000,
+    totalCreditUsed: 35000000,
+  };
+
+  return (
+    <Grid container spacing={3} className="mb-6">
+      <Grid item xs={12} md={4}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Credit
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              <FormattedPrice amount={marketingData.totalCredit} />
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Available credits
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid item xs={12} md={4}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Funding
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              <FormattedPrice amount={marketingData.totalFunding} />
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Total funded amount
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid item xs={12} md={4}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Credit Used
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              <FormattedPrice amount={marketingData.totalCreditUsed} />
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Credits utilized
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  );
+};
+
+// Marketing Automation Sub-tabs Component
+const MarketingSubTabs = ({ activeTab, onTabChange }) => (
+  <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 4 }}>
+    <Tabs
+      value={activeTab}
+      onChange={onTabChange}
+      sx={{
+        "& .MuiTab-root": {
+          textTransform: "none",
+          fontSize: "14px",
+          fontWeight: 500,
+          minWidth: "auto",
+          px: 3,
+        },
+        "& .Mui-selected": {
+          color: "#02981D !important",
+        },
+        "& .MuiTabs-indicator": {
+          backgroundColor: "#02981D",
+        },
+      }}
+    >
+      <Tab label="Funding" />
+      <Tab label="Campaign Units" />
+    </Tabs>
+  </Box>
+);
+
+const TransactionModal = ({ open, onClose, data }) => (
+  <CustomModal open={open} closeModal={onClose}>
+    <div className="w-full flex flex-col items-start gap-4">
+      <div className="flex items-center justify-between w-full">
+        <h2 className="text-gray-900 font-medium text-xl">
+          Transaction Details
+        </h2>
+        <ClearRoundedIcon
+          onClick={onClose}
+          sx={{ color: "#1E1E1E", cursor: "pointer" }}
+        />
+      </div>
+
+      <div className="flex flex-col items-start gap-4 w-full">
+        <h3 className="text-gray-900 font-medium text-sm">
+          TRANSACTION DETAILS
+        </h3>
+
+        <div className="rounded-md w-full border border-gray-300 p-4 flex flex-col gap-3">
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">User:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {data?.user || "N/A"}
+            </span>
+          </div>
+          <Divider />
+
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">Description:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {data?.description || "N/A"}
+            </span>
+          </div>
+          <Divider />
+
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">Amount:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              <FormattedPrice amount={data?.amount} />
+            </span>
+          </div>
+          <Divider />
+
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">Status:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {data?.status || "N/A"}
+            </span>
+          </div>
+          <Divider />
+
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">Date:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {formattedDate(data?.created_at)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end w-full">
+        <Button
+          onClick={onClose}
+          variant="contained"
+          sx={{
+            color: "#fff",
+            background: "#02981D",
+            px: 4,
+            py: 1,
+            boxShadow: "none",
+            "&:hover": { background: "#02981D" },
+          }}
+        >
+          Done
+        </Button>
+      </div>
+    </div>
+  </CustomModal>
+);
+
+const WithdrawalModal = ({
+  open,
+  onClose,
+  data,
+  showAcctDetails,
+  onShowDetails,
+  onApprove,
+  onDecline,
+  loading,
+}) => (
+  <CustomModal open={open} closeModal={onClose}>
+    <div className="w-full flex flex-col items-start gap-4">
+      <div className="flex items-center justify-between w-full">
+        <h2 className="text-gray-900 font-medium text-xl">
+          Withdrawal Request
+        </h2>
+        <ClearRoundedIcon
+          onClick={onClose}
+          sx={{ color: "#1E1E1E", cursor: "pointer" }}
+        />
+      </div>
+
+      {/* User Details */}
+      <div className="w-full">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-gray-900 font-medium text-sm">USER DETAILS</h3>
+          <Button
+            sx={{
+              background: "#FAFAFA",
+              borderRadius: "8px",
+              px: 2,
+              border: "1px solid #C8C8C8",
+              color: "#02981D",
+              "&:hover": { backgroundColor: "#FAFAFA" },
+              fontWeight: 600,
+              fontSize: "14px",
+            }}
+          >
+            Go to profile
+          </Button>
+        </div>
+
+        <div className="rounded-md w-full border border-gray-300 p-4 flex flex-col gap-3">
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">User:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {data?.lastname} {data?.firstname}
+            </span>
+          </div>
+          <Divider />
+
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">Email:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {data?.email}
+            </span>
+          </div>
+          <Divider />
+
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">Phone Number:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {data?.phone}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Transaction Details */}
+      <div className="w-full">
+        <h3 className="text-gray-900 font-medium text-sm mb-2">
+          TRANSACTION DETAILS
+        </h3>
+        <div className="rounded-md w-full border border-gray-300 p-4 flex flex-col gap-3">
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">Description:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {data?.description}
+            </span>
+          </div>
+          <Divider />
+
+          <div className="flex justify-between">
+            <span className="text-sm text-gray-500">Date:</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {formattedDate(data?.created_at)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Withdrawal Details */}
+      {showAcctDetails && (
+        <div className="w-full">
+          <h3 className="text-gray-900 font-medium text-sm mb-2">
+            WITHDRAWAL DETAILS
+          </h3>
+          <div className="rounded-md w-full border border-gray-300 bg-gray-50 p-4 flex flex-col gap-3">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Amount:</span>
+              <span className="text-sm text-gray-900 font-medium">
+                <FormattedPrice amount={data?.withdrawal_details?.amount} />
+              </span>
+            </div>
+            <Divider />
+
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Bank Name:</span>
+              <span className="text-sm text-gray-900 font-medium">
+                {data?.withdrawal_details?.bank_name}
+              </span>
+            </div>
+            <Divider />
+
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Account Number:</span>
+              <span className="text-sm text-gray-900 font-medium">
+                {data?.withdrawal_details?.account_number}
+              </span>
+            </div>
+            <Divider />
+
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Account Name:</span>
+              <span className="text-sm text-gray-900 font-medium">
+                {data?.withdrawal_details?.account_name || "N/A"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      {showAcctDetails ? (
+        <div className="w-full">
+          <h3 className="text-gray-900 font-medium text-sm mb-3">ACTION</h3>
+          <div className="flex gap-4">
+            <Button
+              onClick={() => onDecline(data?.withdrawal_details?.id)}
+              variant="contained"
+              sx={{
+                color: "#DC3545",
+                background: "#F7F7F7",
+                boxShadow: "none",
+                px: 4,
+                py: 2,
+                textTransform: "capitalize",
+                "&:hover": { background: "#F7F7F7" },
+              }}
+            >
+              <ClearRoundedIcon sx={{ mr: 1 }} />
+              Decline
+            </Button>
+
+            <Button
+              onClick={() => onApprove(data?.withdrawal_details?.id)}
+              variant="contained"
+              disabled={loading}
+              sx={{
+                color: "#02981D",
+                background: "#F7F7F7",
+                boxShadow: "none",
+                px: 4,
+                py: 2,
+                textTransform: "capitalize",
+                "&:hover": { background: "#F7F7F7" },
+              }}
+            >
+              {loading ? (
+                <CircularProgress size="1.2rem" sx={{ color: "#02981D" }} />
+              ) : (
+                <>
+                  <CheckRoundedIcon sx={{ mr: 1 }} />
+                  Approve
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          onClick={() => onShowDetails(data?.id)}
+          variant="contained"
+          sx={{
+            color: "#02981D",
+            background: "#F7F7F7",
+            boxShadow: "none",
+            px: 4,
+            py: 2,
+            textTransform: "capitalize",
+            "&:hover": { background: "#F7F7F7" },
+          }}
+        >
+          Proceed
+        </Button>
+      )}
+    </div>
+  </CustomModal>
+);
+
+// Main Component
+const Transactions = () => {
+  // Hooks
+  const transactionState = useTransactionState();
+  const { modals, modalData, openModal, closeModal } = useModalState();
+  const { handleSubmit, control } = useForm({ mode: "all" });
+
+  // Additional State
+  const [showAcctName, setShowAcctName] = useState(false);
+  const [buttonLoading, setButtonLoading] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+  const [sessionId, setSessionId] = useState("");
+  const [approveWithId, setApproveWithId] = useState("");
+  const [declineId, setDeclineId] = useState("");
+
+  // API Calls
+  const apiUrl = transactionsDataUrl(
+    transactionState.currentPage,
+    transactionState.rowsPerPage,
+    transactionState.searchValue,
+    transactionState.trxFilter
+  );
+
+  const queryKey = [
+    "fetchTransactionData",
+    apiUrl,
+    transactionState.trxFilter,
+    transactionState.searchValue,
+  ];
   const {
     isLoading,
     data: transactionsData,
     refetch,
   } = useFetchData(queryKey, apiUrl);
 
-  console.log("data", transactionsData);
+  // Event Handlers
+  const handleTabChange = (event, newValue) => {
+    transactionState.setActiveTab(newValue);
+    // Reset filters when changing tabs
+    transactionState.setTrxFilter("");
+    transactionState.setSearchValue("");
+  };
 
-  const totalPages = transactionsData?.pages;
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
+  const handleMarketingTabChange = (event, newValue) => {
+    transactionState.setMarketingTab(newValue);
   };
 
   const handleOpenModal = (item) => {
-    console.log("item", item);
+    console.log("Opening modal for item:", item);
 
-    setTransactionModalData(item);
-    setOpenTrxModal(true);
+    if (item?.type === "WITHDRAWAL") {
+      openModal("withdrawal", item);
+    } else {
+      openModal("transaction", item);
+    }
+  };
 
-    // switch (item?.type) {
-    //   case "WALLET-CREDIT":
-    //     setWalletCreditModalData(item);
-    //     setOpenWalletTrxModal(true);
-    //     break;
-    //   case "DATA_AND_AIRTIME":
-    //     setWalletCreditModalData(item);
-    //     setOpenWalletTrxModal(true);
-    //     break;
-    //   case "WITHDRAWAL":
-    //     setWithdrawalModalData(item);
-    //     setOpenWithdrawalModal(true);
-    //   default:
-    //     break;
-    // }
+  const handleShowAcctName = (id) => {
+    console.log("Showing account details for:", id);
+    setShowAcctName(true);
   };
 
   const handleOpenApproveReq = async (id) => {
     setApproveWithId(id);
-
     const isValid = await checkNameValidator(id);
 
     if (isValid) {
-      setOpenRequestModal(true);
-      closeWithdrawalModal();
-    } else {
-      console.log("error");
+      openModal("request");
+      closeModal("withdrawal");
     }
   };
+
+  const handleOpenDeclineReq = (id) => {
+    setDeclineId(id);
+    openModal("decline");
+    closeModal("withdrawal");
+  };
+
   const checkNameValidator = async (id) => {
-    console.log("before fetching...");
     try {
       setButtonLoading(true);
       const response = await AuthAxios.get(
         checkNameForWithdrawalApprovalUrl(id)
       );
-
-      console.log("res", response);
       setSessionId(response?.data?.id);
-
       return true;
     } catch (error) {
-      notiError(error?.response?.data?.message); // Ensure you're displaying the correct error message
-      console.log("error", error?.response?.data?.message);
+      notiError(error?.response?.data?.message);
       return false;
     } finally {
       setButtonLoading(false);
-      console.log("after fetching...");
     }
   };
-
-  // filter functionality
-
-  // useEffect(() => {
-  //   const res = transactionsData?.results;
-
-  //   if (res && Array.isArray(res)) {
-  //     let filteredResult = res;
-
-  //     // Filter by transaction type
-  //     if (trxFilter !== "") {
-  //       filteredResult = filteredResult.filter(
-  //         (item) => item?.type?.toLowerCase() === trxFilter
-  //       );
-  //     }
-
-  //     // Filter by search value
-  //     if (searchValue !== "") {
-  //       filteredResult = filteredResult.filter(
-  //         (item) =>
-  //           item?.lastname
-  //             ?.toLowerCase()
-  //             .includes(searchValue?.toLowerCase()) ||
-  //           item?.firstname?.toLowerCase().includes(searchValue?.toLowerCase())
-  //       );
-  //     }
-
-  //     setFilteredTrxData(filteredResult);
-  //   }
-  // }, [transactionsData, trxFilter, searchValue]);
 
   const checkNameForWithdrawalReq = async () => {
     try {
       setIsPosting(true);
       const payload = { session_id: sessionId };
-
-      console.log(payload);
       const response = await AuthAxios.post(
         acceptWithdrawalUrl(approveWithId),
         payload
       );
-      console.log("res", response);
+      console.log("Approval response:", response);
+      openModal("success");
+      closeModal("request");
+      refetch();
     } catch (error) {
-      notiError(error?.response?.data);
-      console.log("error", error);
+      notiError(error?.response?.data?.message);
     } finally {
-      console.log("after fetching...");
       setIsPosting(false);
     }
   };
 
-  return (
-    <div className="w-full flex flex-col items-start  gap-3">
-      <div className="w-full flex items-center justify-between mb-3">
-        <p className="font-[600] text-[20px] text-general ">Transactions</p>
+  const handlePageChange = (page) => {
+    transactionState.setCurrentPage(page);
+  };
 
-        <SelectDate />
-      </div>
-      <CustomCard style="w-full">
-        <div className="flex items-start gap-4 flex-col">
-          <div className="w-full flex items-center justify-between">
-            <div className="bg-white border-[#E3E3E3] border-[1px] w-[50%] py-2 px-2 flex items-center gap-2 rounded-md">
-              <SearchOutlinedIcon sx={{ color: "#757575" }} />
-              <input
-                value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
-                type="text"
-                placeholder="Search member , ID"
-                className="bg-transparent border-none focus:outline-none outline-none  w-full"
-              />
-            </div>
+  const renderTabContent = () => {
+    if (transactionState.trxFilter === "referral") {
+      return <Referrals />;
+    }
 
-            <Button
-              sx={{
-                background: "#FAFAFA",
-                borderRadius: "8px",
-                width: "13%",
-                px: "15px",
-                border: "1px solid #C8C8C8",
-                color: "#02981D",
-                "&:hover": {
-                  backgroundColor: "#FAFAFA",
-                },
-                textTransform: "capitalize",
-                fontWeight: "600",
-                fontSize: "16px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              <img src={tOne} alt="export-icn" />
-              Export
-            </Button>
-          </div>
-          <div className="flex w-[40%] gap-3  items-center">
-            <Button
-              onClick={() => setTrxFilter("")}
-              sx={{
-                background: trxFilter === "" ? "#FAFAFA" : "#fff",
-                borderRadius: "8px",
-                width: "100%",
-                px: "15px",
-                border:
-                  trxFilter === "" ? "1px solid #3F3767" : "1px solid #C8C8C8",
-                color: trxFilter === "" ? "#3F3767" : "#C8C8C8",
-                "&:hover": {
-                  backgroundColor: trxFilter === "" ? "#FAFAFA" : "#fff",
-                },
-                textTransform: "capitalize",
-                fontWeight: "400",
-              }}
-            >
-              All Transactions
-            </Button>
-            {/* <Button
-              onClick={() => setTrxFilter("WALLET-CREDIT")}
-              sx={{
-                background: trxFilter === "WALLET-CREDIT" ? "#FAFAFA" : "#fff",
-                borderRadius: "8px",
-                width: "100%",
-                px: "15px",
-                border:
-                  trxFilter === "WALLET-CREDIT"
-                    ? "1px solid #02981D"
-                    : "1px solid #5E5E5E",
-                color: trxFilter === "WALLET-CREDIT" ? "#02981D" : "#5E5E5E",
-                "&:hover": {
-                  backgroundColor:
-                    trxFilter === "WALLET-CREDIT" ? "#FAFAFA" : "#fff",
-                },
-                textTransform: "capitalize",
-                fontWeight: "400",
-              }}
-            >
-              Wallet Credit
-            </Button>
-            <Button
-              onClick={() => setTrxFilter("DATA_AND_AIRTIME")}
-              sx={{
-                background:
-                  trxFilter === "DATA_AND_AIRTIME" ? "#FAFAFA" : "#fff",
-                borderRadius: "8px",
-                width: "100%",
-                px: "15px",
-                border:
-                  trxFilter === "DATA_AND_AIRTIME"
-                    ? "1px solid #02981D"
-                    : "1px solid #5E5E5E",
-                color: trxFilter === "DATA_AND_AIRTIME" ? "#02981D" : "#5E5E5E",
-                "&:hover": {
-                  backgroundColor:
-                    trxFilter === "DATA_AND_AIRTIME" ? "#FAFAFA" : "#fff",
-                },
-                textTransform: "capitalize",
-                fontWeight: "400",
-              }}
-            >
-              Data Purchase
-            </Button>
-            <Button
-              onClick={() => setTrxFilter("WITHDRAWAL")}
-              sx={{
-                background: trxFilter === "WITHDRAWAL" ? "#FAFAFA" : "#fff",
-                borderRadius: "8px",
-                width: "100%",
-                px: "15px",
-                border:
-                  trxFilter === "WITHDRAWAL"
-                    ? "1px solid #02981D"
-                    : "1px solid #5E5E5E",
-                color: trxFilter === "WITHDRAWAL" ? "#02981D" : "#5E5E5E",
-                "&:hover": {
-                  backgroundColor:
-                    trxFilter === "WITHDRAWAL" ? "#FAFAFA" : "#fff",
-                },
-                textTransform: "capitalize",
-                fontWeight: "400",
-              }}
-            >
-              Withdrawal
-            </Button> */}
-            <Button
-              onClick={() => setTrxFilter("referral")}
-              sx={{
-                background: trxFilter === "referral" ? "#FAFAFA" : "#fff",
-                borderRadius: "8px",
-                width: "100%",
-                px: "15px",
-                border:
-                  trxFilter === "referral"
-                    ? "1px solid #02981D"
-                    : "1px solid #5E5E5E",
-                color: trxFilter === "referral" ? "#02981D" : "#5E5E5E",
-                "&:hover": {
-                  backgroundColor:
-                    trxFilter === "referral" ? "#FAFAFA" : "#fff",
-                },
-                textTransform: "capitalize",
-                fontWeight: "400",
-              }}
-            >
-              Referral
-            </Button>
-          </div>
-
-          {/*  */}
-          {trxFilter !== "referral" && (
-            <TransactionTable
+    switch (transactionState.activeTab) {
+      case TRANSACTION_TABS.PAYMENT:
+        return (
+          <>
+            <PaymentCards />
+            <PaymentTable
               isLoading={isLoading}
               handleOpenModal={handleOpenModal}
               transactionsData={transactionsData}
-              filteredTrxData={filteredTrxData}
-              page={page}
+              page={transactionState.page}
               onPageChange={handlePageChange}
-              totalPages={totalPages}
-              rowsPerPage={rowsPerPage}
-              currentPage={currentPage}
+              totalPages={transactionsData?.pages}
+              rowsPerPage={transactionState.rowsPerPage}
+              currentPage={transactionState.currentPage}
             />
+          </>
+        );
+
+      case TRANSACTION_TABS.SUBSCRIPTION:
+        return (
+          <>
+            <SubscriptionCards />
+            <Subscription />
+          </>
+        );
+
+      case TRANSACTION_TABS.MARKETING:
+        return (
+          <>
+            <MarketingCards />
+            <MarketingSubTabs
+              activeTab={transactionState.marketingTab}
+              onTabChange={handleMarketingTabChange}
+            />
+            {transactionState.marketingTab === MARKETING_TABS.FUNDING ? (
+              <Funding />
+            ) : (
+              <CampaignUnit />
+            )}
+          </>
+        );
+
+      default:
+        return (
+          <TransactionTable
+            isLoading={isLoading}
+            handleOpenModal={handleOpenModal}
+            transactionsData={transactionsData}
+            page={transactionState.page}
+            onPageChange={handlePageChange}
+            totalPages={transactionsData?.pages}
+            rowsPerPage={transactionState.rowsPerPage}
+            currentPage={transactionState.currentPage}
+          />
+        );
+    }
+  };
+
+  return (
+    <div className="w-full flex flex-col items-start gap-6">
+      <TransactionHeader />
+
+      <CustomCard style="w-full">
+        <div className="flex flex-col gap-6 p-6">
+          {/* Main Transaction Tabs */}
+          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+            <Tabs
+              value={transactionState.activeTab}
+              onChange={handleTabChange}
+              sx={{
+                "& .MuiTab-root": {
+                  textTransform: "none",
+                  fontSize: "16px",
+                  fontWeight: 500,
+                },
+                "& .Mui-selected": {
+                  color: "#02981D !important",
+                },
+                "& .MuiTabs-indicator": {
+                  backgroundColor: "#02981D",
+                },
+              }}
+            >
+              <Tab label="Payment Transactions" />
+              <Tab label="Subscription Transactions" />
+              <Tab label="Marketing Automation" />
+            </Tabs>
+          </Box>
+
+          {/* Show search and filter only for payment and subscription tabs */}
+          {transactionState.activeTab !== TRANSACTION_TABS.MARKETING && (
+            <>
+              <SearchAndExport
+                searchValue={transactionState.searchValue}
+                onSearchChange={transactionState.setSearchValue}
+              />
+
+              <FilterButtons
+                activeFilter={transactionState.trxFilter}
+                onFilterChange={transactionState.setTrxFilter}
+                activeTab={transactionState.activeTab}
+              />
+            </>
           )}
 
-          {trxFilter === "referral" && <Referrals />}
+          {/* Tab Content */}
+          {renderTabContent()}
         </div>
       </CustomCard>
-      {/* wallet credit transactions modal */}
-      <CustomModal open={openTrxModal} closeModal={closeTrxModal}>
-        <div className="w-full flex flex-col items-start gap-2">
-          <div className="flex items-center justify-between w-full mb-3">
-            <p className="text-general font-[500] text-[20px] ">Transactions</p>
 
-            <ClearRoundedIcon
-              onClick={closeTrxModal}
-              sx={{ color: "#1E1E1E", cursor: "pointer" }}
-            />
-          </div>
-          {/* <div className="flex items-center justify-between w-full">
-            <p className="text-general font-[500] text-[14px] ">USER DETAILS</p>
-            <Button
-              sx={{
-                background: "#FAFAFA",
-                borderRadius: "8px",
-                px: "15px",
-                border: "1px solid #C8C8C8",
-                color: "#02981D",
-                "&:hover": {
-                  backgroundColor: "#FAFAFA",
-                },
-                fontWeight: "600",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              Go to profile
-            </Button>
-          </div> */}
+      {/* Modals */}
+      <TransactionModal
+        open={modals.transaction}
+        onClose={() => closeModal("transaction")}
+        data={modalData.transaction}
+      />
 
-          {/* <div className="rounded-md w-full border-[1px] border-[#E3E3E3] p-2 flex flex-col items-start">
-            <div className="w-full flex justify-between mt-1">
-              <p className="text-[14px] text-primary_grey_2">User:</p>
-              <p className="text-[14px] text-general font-[500]">
-                {walletCreditModalData?.lastname || ""}{" "}
-                {walletCreditModalData?.firstname || ""}
-              </p>
-            </div>
-            <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
+      <WithdrawalModal
+        open={modals.withdrawal}
+        onClose={() => {
+          closeModal("withdrawal");
+          setShowAcctName(false);
+        }}
+        data={modalData.withdrawal}
+        showAcctDetails={showAcctName}
+        onShowDetails={handleShowAcctName}
+        onApprove={handleOpenApproveReq}
+        onDecline={handleOpenDeclineReq}
+        loading={buttonLoading}
+      />
 
-            <div className="w-full flex justify-between">
-              <p className="text-[14px] text-primary_grey_2">Email:</p>
-              <p className="text-[14px] text-general font-[500]">
-                {walletCreditModalData?.email || ""}
-              </p>
-            </div>
-
-            <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-            <div className="w-full flex justify-between">
-              <p className="text-[14px] text-primary_grey_2">Phone Number:</p>
-              <p className="text-[14px] text-general font-[500]">
-                {walletCreditModalData?.phone || ""}
-              </p>
-            </div>
-          </div> */}
-
-          <div className="flex flex-col items-start gap-2 w-full mt-3">
-            <p className="text-general font-[500] text-[14px] ">
-              TRANSACTION DETAILS
-            </p>
-
-            <div className="rounded-md w-full border-[1px] border-[#E3E3E3] p-2 flex flex-col items-start">
-              <div className="w-full flex justify-between mt-1">
-                <p className="text-[14px] text-primary_grey_2">User:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  {transactionModalData?.user || ""}{" "}
-                </p>
-              </div>
-              <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-              <div className="w-full flex justify-between mt-1">
-                <p className="text-[14px] text-primary_grey_2">Description:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  {transactionModalData?.description || ""}
-                </p>
-              </div>
-              <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-              <div className="w-full flex justify-between">
-                <p className="text-[14px] text-primary_grey_2">Amount:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  <FormattedPrice amount={transactionModalData?.amount} />
-                </p>
-              </div>
-
-              <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-              <div className="w-full flex justify-between">
-                <p className="text-[14px] text-primary_grey_2">Status:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  {transactionModalData?.status || ""}
-                </p>
-              </div>
-              <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-              <div className="w-full flex justify-between">
-                <p className="text-[14px] text-primary_grey_2">Date:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  {formattedDate(transactionModalData?.created_at)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end w-full mt-3">
-            <Button
-              variant="contained"
-              type="submit"
-              sx={{
-                color: "#fff",
-                width: "13%",
-                background: "#02981D",
-                padding: ".6em",
-                boxShadow: "none",
-                "&:hover": {
-                  background: "#02981d",
-                },
-              }}
-            >
-              Done
-            </Button>
-          </div>
-        </div>
-      </CustomModal>
-      {/* All transactions modal */}
-
-      {/* update transactios modal */}
-      <CustomModal open={openWTrxModal} closeModal={closeWTrxModal}>
-        <div className="w-full flex flex-col items-start gap-2">
-          <div className="flex items-center justify-between w-full mb-3">
-            <p className="text-general font-[500] text-[20px] ">Transactions</p>
-
-            <ClearRoundedIcon sx={{ color: "#1E1E1E", cursor: "pointer" }} />
-          </div>
-          <div className="flex items-center justify-between w-full">
-            <p className="text-general font-[500] text-[14px] ">USER DETAILS</p>
-            <Button
-              sx={{
-                background: "#FAFAFA",
-                borderRadius: "8px",
-                px: "15px",
-                border: "1px solid #C8C8C8",
-                color: "#02981D",
-                "&:hover": {
-                  backgroundColor: "#FAFAFA",
-                },
-                fontWeight: "600",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              Go to profile
-            </Button>
-          </div>
-
-          <div className="rounded-md w-full border-[1px] border-[#E3E3E3] p-2 flex flex-col items-start">
-            <div className="w-full flex justify-between mt-1">
-              <p className="text-[14px] text-primary_grey_2">User:</p>
-              <p className="text-[14px] text-general font-[500]">
-                Ronald Richards
-              </p>
-            </div>
-            <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-            <div className="w-full flex justify-between">
-              <p className="text-[14px] text-primary_grey_2">Email:</p>
-              <p className="text-[14px] text-general font-[500]">
-                Ronald@gmail.com
-              </p>
-            </div>
-
-            <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-            <div className="w-full flex justify-between">
-              <p className="text-[14px] text-primary_grey_2">Phone Number:</p>
-              <p className="text-[14px] text-general font-[500]">08168465081</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-start gap-2 w-full mt-3">
-            <p className="text-general font-[500] text-[14px] ">
-              TRANSACTION DETAILS
-            </p>
-
-            <div className="rounded-md w-full border-[1px] border-[#E3E3E3] p-2 flex flex-col items-start">
-              <div className="w-full flex justify-between mt-1">
-                <p className="text-[14px] text-primary_grey_2">Description:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  Wallet Credit
-                </p>
-              </div>
-              <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-              <div className="w-full flex justify-between">
-                <p className="text-[14px] text-primary_grey_2">Amount:</p>
-                <p className="text-[14px] text-general font-[500]">N100,000</p>
-              </div>
-
-              <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-              <div className="w-full flex justify-between">
-                <p className="text-[14px] text-primary_grey_2">Status:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  Successfull
-                </p>
-              </div>
-              <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-              <div className="w-full flex justify-between">
-                <p className="text-[14px] text-primary_grey_2">Date:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  30th June, 2024 • 9:43 AM
-                </p>
-              </div>
-            </div>
-          </div>
-          {/* form radio buttons */}
-
-          <div className="flex flex-col items-start gap-2 mt-2">
-            <p className="text-general font-[500] text-[14px] ">STATUS</p>
-
-            <div>
-              <Controller
-                name="subscription"
-                control={control}
-                defaultValue="Pending"
-                render={({ field }) => (
-                  <FormControl component="fieldset">
-                    <RadioGroup
-                      row
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value)}
-                    >
-                      {statusOptions?.map((label) => (
-                        <div
-                          key={label}
-                          className={`rounded-md border-2 p-1 px-2 mr-3 ${
-                            statusOptions === label
-                              ? "border-[#02981D]"
-                              : "border-[#E6F5E8]"
-                          }`}
-                        >
-                          <FormControlLabel
-                            value={label}
-                            control={
-                              <Radio
-                                sx={{
-                                  color: "#02981D",
-                                  "&.Mui-checked": {
-                                    color: "#02981D",
-                                  },
-                                }}
-                              />
-                            }
-                            label={label}
-                          />
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                )}
-              />
-            </div>
-          </div>
-
-          {/* form radio buttons */}
-
-          <div className="w-full bg-[#FFF9E6] flex mt-3 py-4 gap-3 items-center rounded-md border-[1px] border-[#FFE69C] p-2">
-            <img src={tTwo} alt="t-2" />
-            <p className="text-[14px] text-[#CC9A06] ">
-              This is a longer text describing the alert heading.
-            </p>
-          </div>
-          <Button
-            variant="contained"
-            type="submit"
-            disabled
-            sx={{
-              color: "#fff",
-              my: "1rem",
-              background: "#02981D",
-              padding: ".6em",
-              boxShadow: "none",
-              "&:hover": {
-                background: "#02981d",
-              },
-            }}
-          >
-            Update Status
-          </Button>
-        </div>
-      </CustomModal>
-      {/* update transactios modal */}
-      {/* widthdrawal modal */}
-      <CustomModal open={withdrawalModalData} closeModal={closeWithdrawalModal}>
-        <div className="w-full flex flex-col items-start gap-2">
-          <div className="flex items-center justify-between w-full mb-3">
-            <p className="text-general font-[500] text-[20px] ">Transactions</p>
-
-            <ClearRoundedIcon
-              onClick={closeWithdrawalModal}
-              sx={{ color: "#1E1E1E", cursor: "pointer" }}
-            />
-          </div>
-          <div className="flex items-center justify-between w-full">
-            <p className="text-general font-[500] text-[14px] ">USER DETAILS</p>
-            <Button
-              sx={{
-                background: "#FAFAFA",
-                borderRadius: "8px",
-                px: "15px",
-                border: "1px solid #C8C8C8",
-                color: "#02981D",
-                "&:hover": {
-                  backgroundColor: "#FAFAFA",
-                },
-                fontWeight: "600",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              Go to profile
-            </Button>
-          </div>
-
-          <div className="rounded-md w-full border-[1px] border-[#E3E3E3] p-2 flex flex-col items-start">
-            <div className="w-full flex justify-between mt-1">
-              <p className="text-[14px] text-primary_grey_2">User:</p>
-              <p className="text-[14px] text-general font-[500]">
-                {withdrawalModalData?.lastname || ""}{" "}
-                {withdrawalModalData?.firstname || ""}
-              </p>
-            </div>
-            <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-            <div className="w-full flex justify-between">
-              <p className="text-[14px] text-primary_grey_2">Email:</p>
-              <p className="text-[14px] text-general font-[500]">
-                {withdrawalModalData?.email || ""}
-              </p>
-            </div>
-
-            <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-            <div className="w-full flex justify-between">
-              <p className="text-[14px] text-primary_grey_2">Phone Number:</p>
-              <p className="text-[14px] text-general font-[500]">
-                {withdrawalModalData?.phone || ""}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-start gap-2 w-full mt-3">
-            <p className="text-general font-[500] text-[14px] ">
-              TRANSACTION DETAILS
-            </p>
-
-            <div className="rounded-md w-full border-[1px] border-[#E3E3E3] p-2 flex flex-col items-start">
-              <div className="w-full flex justify-between mt-1">
-                <p className="text-[14px] text-primary_grey_2">Description:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  {withdrawalModalData?.description || ""}
-                </p>
-              </div>
-
-              <Divider sx={{ color: "#E3E3E3", width: "100%", my: "8px" }} />
-
-              <div className="w-full flex justify-between">
-                <p className="text-[14px] text-primary_grey_2">Date:</p>
-                <p className="text-[14px] text-general font-[500]">
-                  not sending the date
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {showAcctName ? (
-            <>
-              <div className="flex flex-col items-start gap-2 w-full mt-3">
-                <p className="text-general font-[500] text-[14px] ">
-                  WITHDRAWAL DETAILS
-                </p>
-
-                <div className="rounded-md w-full border-[1px] bg-[#F7F7F7] border-[#E3E3E3] p-2 flex flex-col items-start">
-                  <div className="w-full flex justify-between">
-                    <p className="text-[14px] text-primary_grey_2">Amount:</p>
-                    <p className="text-[14px] text-general font-[500]">
-                      <FormattedPrice
-                        amount={withdrawalModalData?.withdrawal_details?.amount}
-                      />
-                    </p>
-                  </div>
-
-                  <Divider
-                    sx={{ color: "#E3E3E3", width: "100%", my: "8px" }}
-                  />
-
-                  <div className="w-full flex justify-between">
-                    <p className="text-[14px] text-primary_grey_2">
-                      Bank Name:
-                    </p>
-                    <p className="text-[14px] text-general font-[500]">
-                      {withdrawalModalData?.withdrawal_details?.bank_name || ""}
-                    </p>
-                  </div>
-                  <Divider
-                    sx={{ color: "#E3E3E3", width: "100%", my: "8px" }}
-                  />
-
-                  <div className="w-full flex justify-between">
-                    <p className="text-[14px] text-primary_grey_2">
-                      Account Number:
-                    </p>
-                    <p className="text-[14px] text-general font-[500]">
-                      {withdrawalModalData?.withdrawal_details?.account_number}
-                    </p>
-                  </div>
-
-                  <Divider
-                    sx={{ color: "#E3E3E3", width: "100%", my: "8px" }}
-                  />
-
-                  <div className="w-full flex justify-between">
-                    <p className="text-[14px] text-primary_grey_2">
-                      Account Name:
-                    </p>
-                    <p className="text-[14px] text-general font-[500]">
-                      {withdrawalModalData?.withdrawal_details?.account_name ||
-                        "nil"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="w-full flex-col items-start gap-2 mt-2">
-                <p className="text-general font-[500] text-[14px] ">Action</p>
-                <div className="flex justify-start gap-5 w-full mt-3">
-                  <Button
-                    onClick={() =>
-                      handleOpenDeclineReqModal(
-                        withdrawalModalData?.withdrawal_details?.id
-                      )
-                    }
-                    variant="contained"
-                    sx={{
-                      color: "#DC3545",
-                      background: "#F7F7F7",
-                      boxShadow: "none",
-                      width: "10rem",
-                      fontSize: "1rem",
-                      py: "1rem",
-                      textTransform: "capitalize",
-                      "&:hover": {
-                        background: "#F7F7F7",
-                      },
-                    }}
-                  >
-                    <ClearRoundedIcon sx={{ mr: "1rem" }} />
-                    Decline
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      handleOpenApproveReq(
-                        withdrawalModalData?.withdrawal_details?.id
-                      )
-                    }
-                    variant="contained"
-                    sx={{
-                      color: "#02981D",
-                      background: "#F7F7F7",
-                      boxShadow: "none",
-                      width: "10rem",
-                      fontSize: "1rem",
-                      py: "1rem",
-                      textTransform: "capitalize",
-                      "&:hover": {
-                        background: "#F7F7F7",
-                      },
-                    }}
-                  >
-                    {buttonLoading ? (
-                      <CircularProgress
-                        size="1.2rem"
-                        sx={{ color: "#02981D" }}
-                      />
-                    ) : (
-                      <>
-                        <CheckRoundedIcon sx={{ mr: "1rem" }} />
-                        Approve
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <Button
-              onClick={() => handleShowAcctName(withdrawalModalData?.id)}
-              variant="contained"
-              sx={{
-                color: "#02981D",
-                background: "#F7F7F7",
-                boxShadow: "none",
-                width: "10rem",
-                fontSize: "1rem",
-                py: "1rem",
-                textTransform: "capitalize",
-                "&:hover": {
-                  background: "#F7F7F7",
-                },
-              }}
-            >
-              Proceed
-            </Button>
-          )}
-        </div>
-      </CustomModal>
-      {/* widthdrawal modal ends */}
-      {/* success request modal */}
-      <CustomModal open={openRequestModal}>
+      <CustomModal
+        open={modals.request}
+        closeModal={() => closeModal("request")}
+      >
         <CustomSuccessRequestModal
           id={approveWithId}
           onClick={checkNameForWithdrawalReq}
-          close={closeOpenRequestModal}
+          close={() => closeModal("request")}
           titleOne="Sure to Update Transaction Status?"
-          titleTwo=" User will be notified of this action."
+          titleTwo="User will be notified of this action."
           btnText={
             isPosting ? (
               <CircularProgress size="1.2rem" sx={{ color: "#fff" }} />
@@ -953,43 +1209,39 @@ const Transactions = () => {
           }
         />
       </CustomModal>
-      {/* success request modal */}
-      {/* success modal */}
-      <CustomModal open={openSuccessModal}>
+
+      <CustomModal
+        open={modals.success}
+        closeModal={() => closeModal("success")}
+      >
         <CustomSuccessModal
-          close={closeSuccessModal}
+          close={() => closeModal("success")}
           textOne="Transaction status has been updated."
         />
       </CustomModal>
-      {/* success modal */}
 
-      {/* decline req modal */}
-      <CustomModal open={openDeclineReqModal} closeModal={closeDeclineReqModal}>
-        <div className="w-full flex flex-col items-start gap-2">
-          <div className="flex items-center justify-between w-full mb-3">
-            <p className="text-general font-[500] text-[20px] ">
+      <CustomModal
+        open={modals.decline}
+        closeModal={() => closeModal("decline")}
+      >
+        <div className="w-full flex flex-col items-start gap-4">
+          <div className="flex items-center justify-between w-full">
+            <h2 className="text-gray-900 font-medium text-xl">
               Decline Withdrawal
-            </p>
-
+            </h2>
             <ClearRoundedIcon
-              onClick={closeDeclineReqModal}
+              onClick={() => closeModal("decline")}
               sx={{ color: "#1E1E1E", cursor: "pointer" }}
             />
           </div>
-
-          <div className="w-full">
-            <DeclineModal
-              refetch={refetch}
-              declineId={declineId}
-              closeDeclineReqModal={closeDeclineReqModal}
-            />
-          </div>
+          <DeclineModal
+            refetch={refetch}
+            declineId={declineId}
+            closeDeclineReqModal={() => closeModal("decline")}
+          />
         </div>
       </CustomModal>
 
-      {/* decline req modal end */}
-
-      {/*  */}
       <ToastContainer
         position="top-right"
         autoClose={5000}
