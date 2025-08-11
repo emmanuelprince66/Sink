@@ -288,7 +288,7 @@ const AllMembers = ({
                                 color: "#828282",
                               }}
                             >
-                              {"-"}
+                              {item?.wallet_balance}
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -310,7 +310,12 @@ const AllMembers = ({
                                 color: "#828282",
                               }}
                             >
-                              -
+                              {Math.floor(
+                                (new Date(item?.subscription_end_date) -
+                                  new Date(item?.subscription_start_date)) /
+                                  (1000 * 60 * 60 * 24)
+                              )}{" "}
+                              days
                             </Typography>
                           </TableCell>
                           <TableCell>
@@ -321,7 +326,7 @@ const AllMembers = ({
                                 color: "#828282",
                               }}
                             >
-                              -
+                              {item?.subscription_amount || "-"}
                             </Typography>
                           </TableCell>
                           <TableCell>{item?.email}</TableCell>

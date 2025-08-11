@@ -952,6 +952,8 @@ const Transactions = () => {
   const [approveWithId, setApproveWithId] = useState("");
   const [declineId, setDeclineId] = useState("");
 
+  console.log("transactionState", transactionState);
+
   // API Calls
   const apiUrl = transactionsDataUrl(
     transactionState.currentPage,
