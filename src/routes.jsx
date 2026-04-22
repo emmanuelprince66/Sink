@@ -21,6 +21,9 @@ import Rmerchant from "./pages/r-merchant/Rmerchant";
 import MemberProfile from "./pages/members/MemberProfile";
 import KYCManagement from "./pages/kyc/KYCManagement";
 import KYCDetailPage from "./pages/kyc/KYCDetailPage";
+import UserManagement from "./pages/users/UserManagement";
+import UserProfile from "./pages/users/UserProfile";
+import SubscriptionManagement from "./pages/subscriptions/SubscriptionManagement";
 import EngagementHub from "./pages/communications/EngagementHub";
 import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
 import RolesPermissions from "./pages/adminstrator/RolesPermissions";
@@ -80,6 +83,21 @@ const RoutesContainer = () => {
       component: <RolesPermissions />,
       path: "/roles",
       name: "Roles & Permissions",
+    },
+    {
+      component: <UserManagement />,
+      path: "/users",
+      name: "User Management",
+    },
+    {
+      component: <UserProfile />,
+      path: "/users/:id",
+      name: "User Profile",
+    },
+    {
+      component: <SubscriptionManagement />,
+      path: "/subscriptions",
+      name: "Subscription Management",
     },
   ];
   return (

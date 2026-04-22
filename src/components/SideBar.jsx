@@ -11,6 +11,8 @@ import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import CardMembershipOutlinedIcon from "@mui/icons-material/CardMembershipOutlined";
 import sinkTwo from "../assets/sink/sink2.png";
 
 const SideBar = () => {
@@ -41,9 +43,27 @@ const SideBar = () => {
           icon: (active) => <Stwo color={active ? "white" : "#5E5E5E"} />,
         },
         {
+          name: "Users",
+          link: "users",
+          icon: (active) => (
+            <GroupOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
+        },
+        {
           name: "Transactions",
           link: "transactions",
           icon: (active) => <Seight color={active ? "white" : "#5E5E5E"} />,
+        },
+        {
+          name: "Subscriptions",
+          link: "subscriptions",
+          icon: (active) => (
+            <CardMembershipOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
         },
       ],
     },
