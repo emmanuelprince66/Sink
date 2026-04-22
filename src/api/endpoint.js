@@ -8,7 +8,7 @@ export const allMembersUrl = (
 };
 
 export const overveiwUrl = (selectedDates) => {
-  return `/profile/overview/?start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
+  return `/profile/profile/?start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
   x;
 };
 
@@ -24,6 +24,7 @@ export const targetSavingsUrl = () => {
 export const membersProfileUrl = (memberId) => {
   return `/merchant/user/${memberId}/`;
 };
+
 export const investmentListDataUrl = (filterValue, selectedDates) => {
   return `/admin/investment_stats/?status=${filterValue}&start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
 };
@@ -54,6 +55,56 @@ export const transactionsDataUrl = (
   return `/transaction/all/?page=${currentPage}&limit=${rowsPerPage}&search=${searchValue}&type=${
     trxFilter || "SUBSCRIPTION"
   }`;
+};
+export const transactionsPaymentDataUrl = (
+  currentPage,
+  rowsPerPage,
+  searchValue,
+  trxFilter,
+  selectedDates
+) => {
+  return `/transaction/wallet-transactions/?page=${currentPage}&limit=${rowsPerPage}&start_date=${
+    selectedDates?.startDate
+  }&end_date=${selectedDates?.endDate}&account_name=${searchValue}&type=${
+    trxFilter || ""
+  }`;
+};
+export const transactionsSubscriptionDataUrl = (
+  currentPage,
+  rowsPerPage,
+  searchValue,
+  trxFilter,
+  selectedDates
+) => {
+  return `/transaction/subscriptions/?page=${currentPage}&limit=${rowsPerPage}&start_date=${
+    selectedDates?.startDate
+  }&end_date=${selectedDates?.endDate}&merchant_name=${searchValue}&type=${
+    trxFilter || ""
+  }`;
+};
+export const transactionsMarketAutomationDataUrl = (
+  currentPage,
+  rowsPerPage,
+  searchValue,
+  trxFilter,
+  selectedDates
+) => {
+  return `/transaction/market_automation/?page=${currentPage}&limit=${rowsPerPage}&start_date=${
+    selectedDates?.startDate
+  }&end_date=${selectedDates?.endDate}&search=${searchValue}&type=${
+    trxFilter || ""
+  }`;
+};
+export const transactionsCampaignUnitDataUrl = (
+  currentPage,
+  rowsPerPage,
+  searchValue,
+  trxFilter,
+  selectedDates
+) => {
+  return `/transaction/campaign_units/?page=${currentPage}&limit=${rowsPerPage}
+  &start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}
+  &search=${searchValue}&type=${trxFilter || ""}`;
 };
 export const checkNameForWithdrawalApprovalUrl = (id) => {
   return `/admin/check_name/${id}`;

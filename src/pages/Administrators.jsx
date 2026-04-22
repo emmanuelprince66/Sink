@@ -1,39 +1,28 @@
-import React, { useEffect, useState } from "react";
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
-import { Button, FormControl, radioGroupClasses } from "@mui/material";
 import ChevronRightOutlinedIcon from "@mui/icons-material/ChevronRightOutlined";
 import ClearRoundedIcon from "@mui/icons-material/ClearRounded";
-import { useForm, Controller } from "react-hook-form";
+import { Button } from "@mui/material";
+import { useEffect, useState } from "react";
 
 import {
-  Table,
   Box,
+  CircularProgress,
+  Paper,
+  Table,
   TableBody,
   TableCell,
   TableContainer,
-  TableHead,
   TableRow,
-  Paper,
-  CircularProgress,
-  Grid,
-  FormHelperText,
-  Container,
-  TextField,
-  TablePagination,
-  ToggleButtonGroup,
-  ToggleButton,
-  Card,
   Typography,
-  Modal,
 } from "@mui/material";
 import CustomModal from "../components/CustomModal";
 import CustomSuccessModal from "../components/CustomSuccessModal";
 
-import EditAdministrator from "./adminstrator/EditAdministrator";
-import AddAdministrator from "./adminstrator/AddAdministrator";
 import { ToastContainer } from "react-toastify";
 import { administratorDataUrl } from "../api/endpoint";
 import useFetchData from "../hooks/useFetchData";
+import AddAdministrator from "./adminstrator/AddAdministrator";
+import EditAdministrator from "./adminstrator/EditAdministrator";
 
 const Administrators = () => {
   const [page, setPage] = useState(0);
@@ -83,7 +72,7 @@ const Administrators = () => {
 
   return (
     <div className="w-full flex items-start gap-3 flex-col justify-center">
-      <p className=" text-[#171717] font-[600] text-[20px] ">Adminstrator</p>
+      <p className=" text-[#171717] font-[500] text-[20px] ">Adminstrator</p>
 
       <div className="flex w-full justify-end ">
         <Button

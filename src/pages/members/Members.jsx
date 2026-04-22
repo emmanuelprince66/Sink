@@ -1,9 +1,9 @@
-import React, { useState } from "react";
-import AllMembers from "./AllMembers";
-import MemberProfile from "./MemberProfile";
-import MemberFullTransaction from "./MemberFullTransaction";
+import { useState } from "react";
 import { allMembersUrl } from "../../api/endpoint";
 import useFetchData from "../../hooks/useFetchData";
+import AllMembers from "./AllMembers";
+import MemberFullTransaction from "./MemberFullTransaction";
+import MemberProfile from "./MemberProfile";
 
 const Members = () => {
   const [showComp, setShowComp] = useState("members");
@@ -22,6 +22,8 @@ const Members = () => {
   );
   const queryKey = ["fetchMembers", apiUrl, currentPage];
   const { data, error, isLoading } = useFetchData(queryKey, apiUrl);
+
+  console.log("Members data:", data);
 
   const totalPages = data?.total;
 

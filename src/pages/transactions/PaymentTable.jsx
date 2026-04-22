@@ -13,7 +13,8 @@ import {
   Typography,
 } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
-const Funding = ({
+import CustomPagination from "../../components/CustomPagination";
+const PaymentTable = ({
   transactionsData,
   isLoading,
   filteredTrxData,
@@ -38,14 +39,17 @@ const Funding = ({
             >
               <TableRow>
                 <TableCell>S/N</TableCell>
-                <TableCell> Merchant Name</TableCell>
-                <TableCell>amount funded </TableCell>
-                <TableCell>Credit</TableCell>
+                <TableCell> Origin</TableCell>
+                <TableCell>Recipient</TableCell>
+                <TableCell>Sub Type</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Amount(N)</TableCell>
                 <TableCell>Date</TableCell>
+                <TableCell>Action</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {isLoading || !transactionsData?.data ? (
+              {isLoading || !transactionsData?.transactions?.results ? (
                 <CircularProgress
                   size="4.2rem"
                   sx={{
@@ -54,10 +58,10 @@ const Funding = ({
                     padding: "1em",
                   }}
                 />
-              ) : transactionsData?.data &&
-                Array.isArray(transactionsData?.data) &&
-                transactionsData?.data?.length > 0 ? (
-                transactionsData?.data?.map((item, i) => (
+              ) : transactionsData?.transactions?.results &&
+                Array.isArray(transactionsData?.transactions?.results) &&
+                transactionsData?.transactions?.results?.length > 0 ? (
+                transactionsData?.transactions?.results?.map((item, i) => (
                   <TableRow key={item.id}>
                     <TableCell>{page * rowsPerPage + i + 1}</TableCell>
                     <TableCell>
@@ -68,11 +72,11 @@ const Funding = ({
                           color: "#5E5E5E",
                         }}
                       >
-                        {item?.user}
+                        {item?.sender}
                       </Typography>
                     </TableCell>
-                    <TableCell>{item?.description}</TableCell>
-                    <TableCell>{item?.amount}</TableCell>
+                    <TableCell>{item?.recipient}</TableCell>
+                    <TableCell>{"-"}</TableCell>
                     <TableCell>
                       <Box
                         sx={{
@@ -131,6 +135,19 @@ const Funding = ({
                       </Box>
                     </TableCell>
 
+                    <TableCell>{item?.amount}</TableCell>
+                    <TableCell>
+                      {item?.date
+                        ? new Date(item.date).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "-"}
+                    </TableCell>
+
                     <TableCell>
                       <Button
                         onClick={() => handleOpenModal(item)}
@@ -167,15 +184,15 @@ const Funding = ({
         </TableContainer>
       </Box>
       {/* table end */}
-      {/* <CustomPagination
+      <CustomPagination
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={onPageChange}
-        nextPageLink={transactionsData?.links?.next}
-        prevPageLink={transactionsData?.links?.previous}
-      /> */}
+        // nextPageLink={?.links?.next}
+        // prevPageLink={transactionsData?.links?.previous}
+      />
     </>
   );
 };
 
-export default Funding;
+export default PaymentTable;

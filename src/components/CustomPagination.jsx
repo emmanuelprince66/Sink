@@ -1,7 +1,6 @@
-import React from "react";
-import { Button } from "@mui/material";
-import KeyboardBackspaceRoundedIcon from "@mui/icons-material/KeyboardBackspaceRounded";
 import EastRoundedIcon from "@mui/icons-material/EastRounded";
+import KeyboardBackspaceRoundedIcon from "@mui/icons-material/KeyboardBackspaceRounded";
+import { Button } from "@mui/material";
 
 const PageNumberPagination = ({
   currentPage,
@@ -69,6 +68,8 @@ const PageNumberPagination = ({
 };
 
 export const CustomPagination = ({ currentPage, totalPages, onPageChange }) => {
+  console.log("currentPage", currentPage);
+  console.log("totalPages", totalPages);
   const handleNext = () => {
     if (currentPage < totalPages) {
       onPageChange(currentPage + 1);

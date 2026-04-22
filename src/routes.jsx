@@ -19,6 +19,11 @@ import Investment from "./pages/investments/Investment";
 import Transactions from "./pages/Transactions";
 import Rmerchant from "./pages/r-merchant/Rmerchant";
 import MemberProfile from "./pages/members/MemberProfile";
+import KYCManagement from "./pages/kyc/KYCManagement";
+import KYCDetailPage from "./pages/kyc/KYCDetailPage";
+import EngagementHub from "./pages/communications/EngagementHub";
+import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
+import RolesPermissions from "./pages/adminstrator/RolesPermissions";
 
 const theme = createTheme({
   typography: {
@@ -50,6 +55,31 @@ const RoutesContainer = () => {
       component: <Administrators />,
       path: "/administrator",
       name: "Administrator",
+    },
+    {
+      component: <KYCManagement />,
+      path: "/kyc",
+      name: "KYC Management",
+    },
+    {
+      component: <KYCDetailPage />,
+      path: "/kyc/:segment/:id",
+      name: "KYC Detail",
+    },
+    {
+      component: <EngagementHub />,
+      path: "/engagement",
+      name: "Engagement Hub",
+    },
+    {
+      component: <LogisticsDashboard />,
+      path: "/logistics",
+      name: "Logistics",
+    },
+    {
+      component: <RolesPermissions />,
+      path: "/roles",
+      name: "Roles & Permissions",
     },
   ];
   return (

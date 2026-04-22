@@ -69,7 +69,7 @@ const Overview = () => {
       </div>
 
       <div className="w-full flex items-center justify-between gap-9 mt-7">
-        {false ? (
+        {isLoading ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#F6FFF8" style="w-full">
@@ -97,7 +97,7 @@ const Overview = () => {
           </CustomCard>
         )}
 
-        {false ? (
+        {isLoading ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#FCF5FF" style="w-full">
@@ -112,20 +112,20 @@ const Overview = () => {
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">All-time:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  <FormattedPrice amount={data?.total_savings} />
+                  <FormattedPrice amount={data?.total_sales} />
                 </p>
               </div>
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">By Filter:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  <FormattedPrice amount={data?.filtered_savings_sum} />
+                  <FormattedPrice amount={data?.filtered_sales} />
                 </p>
               </div>
             </div>
           </CustomCard>
         )}
 
-        {false ? (
+        {isLoading ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#FFF7E8" style="w-full">
@@ -152,7 +152,7 @@ const Overview = () => {
             </div>
           </CustomCard>
         )}
-        {false ? (
+        {isLoading ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#FCF5FF" style="w-full">
@@ -179,7 +179,7 @@ const Overview = () => {
             </div>
           </CustomCard>
         )}
-        {false ? (
+        {isLoading ? (
           <Skeleton variant="rounded" width="100%" height={247} />
         ) : (
           <CustomCard color="#F6FFF8" style="w-full">

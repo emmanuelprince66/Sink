@@ -1,157 +1,166 @@
 import React from "react";
-import wagesLogo from "../assets/ww.svg";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import Cookies from "js-cookie";
 import Sone from "../assets/sidebar/Sone";
 import Stwo from "../assets/sidebar/Stwo";
-import Sthree from "../assets/sidebar/Sthree";
-import Sfour from "../assets/sidebar/Sfour";
-import Sfive from "../assets/sidebar/Sfive";
 import Ssix from "../assets/sidebar/Ssix";
 import Sseven from "../assets/sidebar/Sseven";
-import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import Seight from "../assets/sidebar/Seight";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import sinkTwo from "../assets/sink/sink2.png";
+
 const SideBar = () => {
   const navigate = useNavigate();
-  const location = window.location.pathname;
+  const location = useLocation();
+  const path = location.pathname;
+  const isActive = (link) =>
+    path === `/${link}` || path.startsWith(`/${link}/`);
 
-  function logOut() {
+  const logOut = () => {
     navigate("/");
     Cookies.remove("authToken");
     Cookies.remove("refreshToken");
-  }
+  };
 
-  const mainMenu = [
+  const groups = [
     {
-      name: "Overview",
-      component: (
-        <span isRightLink={location === "/overview"}>
-          <Sone color={location === "/overview" ? "white" : "#5E5E5E"} />
-        </span>
-      ),
-      link: "overview",
+      label: "General",
+      items: [
+        {
+          name: "Overview",
+          link: "overview",
+          icon: (active) => <Sone color={active ? "white" : "#5E5E5E"} />,
+        },
+        {
+          name: "Merchants",
+          link: "members",
+          icon: (active) => <Stwo color={active ? "white" : "#5E5E5E"} />,
+        },
+        {
+          name: "Transactions",
+          link: "transactions",
+          icon: (active) => <Seight color={active ? "white" : "#5E5E5E"} />,
+        },
+      ],
     },
     {
-      name: "Merchants",
-      component: (
-        <span isRightLink={location === "/members"}>
-          <Stwo color={location === "/members" ? "white" : "#5E5E5E"} />
-        </span>
-      ),
-      link: "members",
-    },
-    // {
-    //   name: "Savings",
-    //   component: (
-    //     <span isRightLink={location === "/savings"}>
-    //       <Sthree color={location === "/savings" ? "white" : "#5E5E5E"} />
-    //     </span>
-    //   ),
-    //   link: "savings",
-    // },
-    // {
-    //   name: "Investments",
-    //   component: (
-    //     <span isRightLink={location === "/investments"}>
-    //       <Sfour color={location === "/investments" ? "white" : "#5E5E5E"} />
-    //     </span>
-    //   ),
-    //   link: "investments",
-    // },
-    // {
-    //   name: "Loans",
-    //   component: (
-    //     <span isRightLink={location === "/loans"}>
-    //       <Sfive color={location === "/loans" ? "white" : "#5E5E5E"} />
-    //     </span>
-    //   ),
-    //   link: "loans",
-    // },
-    {
-      name: "Transactions",
-      component: (
-        <span isRightLink={location === "/transactions"}>
-          <Seight color={location === "/transactions" ? "white" : "#5E5E5E"} />
-        </span>
-      ),
-      link: "transactions",
+      label: "Operations",
+      items: [
+        {
+          name: "KYC Management",
+          link: "kyc",
+          icon: (active) => (
+            <VerifiedUserOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
+        },
+        {
+          name: "Logistics",
+          link: "logistics",
+          icon: (active) => (
+            <LocalShippingOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
+        },
+        {
+          name: "Engagement Hub",
+          link: "engagement",
+          icon: (active) => (
+            <CampaignOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
+        },
+        {
+          name: "Notifications",
+          link: "notifications",
+          icon: (active) => <Ssix color={active ? "white" : "#5E5E5E"} />,
+        },
+      ],
     },
     {
-      name: "Notifications",
-      component: (
-        <span isRightLink={location === "/notifications"}>
-          <Ssix color={location === "/notifications" ? "white" : "#5E5E5E"} />
-        </span>
-      ),
-      link: "notifications",
-    },
-
-    {
-      name: "Administrator",
-      component: (
-        <span isRightLink={location === "/admin"}>
-          <Sseven color={location === "/administrator" ? "white" : "#5E5E5E"} />
-        </span>
-      ),
-      link: "administrator",
-    },
-    {
-      name: "Register a Merchant",
-      component: (
-        <span isRightLink={location === "/r-merchant"}>
-          <Sseven color={location === "/r-merchant" ? "white" : "#5E5E5E"} />
-        </span>
-      ),
-      link: "r-merchant",
+      label: "Administration",
+      items: [
+        {
+          name: "Administrators",
+          link: "administrator",
+          icon: (active) => <Sseven color={active ? "white" : "#5E5E5E"} />,
+        },
+        {
+          name: "Roles & Permissions",
+          link: "roles",
+          icon: (active) => (
+            <AdminPanelSettingsOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
+        },
+        {
+          name: "Register a Merchant",
+          link: "r-merchant",
+          icon: (active) => <Sseven color={active ? "white" : "#5E5E5E"} />,
+        },
+      ],
     },
   ];
+
   return (
-    <div className="p-3 ">
-      <div className="h-full w-full mb-[30%] mt-[5%]">
-        {/* <img src={wagesLogo} className="object-cover" alt="wages-icon" /> */}
+    <div className="p-3 h-full flex flex-col">
+      <div className="px-2 mt-3 mb-6">
         <div className="h-[50px] w-[100px]">
           <img
             src={sinkTwo}
             alt="sink-logo"
-            className="h-full w-full object-fill "
+            className="h-full w-full object-fill"
           />
         </div>
       </div>
 
-      <div>
-        {mainMenu?.map((item) => {
-          return (
-            <>
-              <li
-                key={item.name}
-                className={`py-[10px] px-[16px] list-none ${
-                  location === `/${item.link}`
-                    ? "bg-[#02981D] text-[#fff]"
-                    : "bg-transparent text-grey_2"
-                }  w-full mb-3  rounded-[10px]`}
-              >
-                <Link
-                  to={`/${item.link}`}
-                  className="flex flex-row items-center gap-2  text-[14px] leading-[17.07px] font-[500] "
-                >
-                  {item.component}
-
-                  {item.name}
-                </Link>
-              </li>
-            </>
-          );
-        })}
-
-        <button
-          className=" flex items-center gap-3 text-primary_red py-[10px] px-[16px] w-full mb-3 rounded-[10px]"
-          onClick={logOut}
-        >
-          <LogoutOutlinedIcon />
-          Logout
-        </button>
+      <div className="flex-1 overflow-y-auto pr-1">
+        {groups.map((group) => (
+          <div key={group.label} className="mb-5">
+            <p className="px-3 mb-2 text-[11px] uppercase tracking-wide text-[#9CA3AF] font-semibold">
+              {group.label}
+            </p>
+            <ul className="flex flex-col gap-1">
+              {group.items.map((item) => {
+                const active = isActive(item.link);
+                return (
+                  <li key={item.name} className="list-none">
+                    <Link
+                      to={`/${item.link}`}
+                      className={`flex items-center gap-3 py-[10px] px-[14px] rounded-[10px] text-[14px] font-medium transition ${
+                        active
+                          ? "bg-[#02981D] text-white"
+                          : "text-grey_2 hover:bg-[#F6FFF8] hover:text-[#02981D]"
+                      }`}
+                    >
+                      <span className="flex items-center justify-center w-5 h-5">
+                        {item.icon(active)}
+                      </span>
+                      {item.name}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
       </div>
+
+      <button
+        className="mt-3 flex items-center gap-3 text-primary_red py-[10px] px-[14px] w-full rounded-[10px] hover:bg-[#FDECEC] transition"
+        onClick={logOut}
+      >
+        <LogoutOutlinedIcon />
+        <span className="text-[14px] font-medium">Logout</span>
+      </button>
     </div>
   );
 };

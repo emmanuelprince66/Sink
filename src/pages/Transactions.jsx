@@ -38,13 +38,18 @@ import TransactionTable from "./transactions/TransactionTable";
 import {
   acceptWithdrawalUrl,
   checkNameForWithdrawalApprovalUrl,
-  transactionsDataUrl,
+  transactionsCampaignUnitDataUrl,
+  transactionsMarketAutomationDataUrl,
+  transactionsPaymentDataUrl,
+  transactionsSubscriptionDataUrl,
 } from "../api/endpoint";
+
 import { AuthAxios } from "../helpers/axiosInstance";
 import useFetchData from "../hooks/useFetchData";
 
 // Utils and Assets
 import tOne from "../assets/transactions/t-1.svg";
+import { useDateContext } from "../utils/DateContext";
 import FormattedPrice from "../utils/FormattedPrice";
 import formattedDate from "../utils/formattedDate";
 import { notiError } from "../utils/noti";
@@ -149,7 +154,7 @@ const SearchAndExport = ({ searchValue, onSearchChange }) => (
     <TextField
       value={searchValue}
       onChange={(e) => onSearchChange(e.target.value)}
-      placeholder="Search member, ID"
+      placeholder="Search recipient name"
       size="small"
       sx={{ width: "50%" }}
       InputProps={{
@@ -226,18 +231,19 @@ const FilterButtons = ({ activeFilter, onFilterChange, activeTab }) => {
 };
 
 // Payment Transaction Cards Component
-const PaymentCards = () => {
+const PaymentCards = ({ transactionsData }) => {
   // Mock data - replace with actual API data
   const paymentData = {
-    totalInflow: 125000000, // in cents/kobo
-    totalOutflow: 85000000,
-    totalWalletBalance: 40000000,
-    totalProfit: 15000000,
+    totalInflow: transactionsData?.totals?.inflow, // in cents/kobo
+    totalOutflow: transactionsData?.totals?.outflow,
+    totalWalletBalance: transactionsData?.totals?.wallet_balance || 0,
+    totalProfit: transactionsData?.totals?.revenue_profit || 0,
+    totalRevenueLoss: transactionsData?.totals?.revenue_loss || 0,
   };
 
   return (
-    <Grid container spacing={3} className="mb-6">
-      <Grid item xs={12} sm={6} md={3}>
+    <Grid container md={12} spacing={2} className="mb-6">
+      <Grid item xs={12} sm={6} md={2}>
         <Card
           sx={{
             borderRadius: "12px",
@@ -262,10 +268,10 @@ const PaymentCards = () => {
             <Typography
               variant="h5"
               sx={{
-                fontWeight: 600,
+                fontWeight: 500,
                 color: "#111827",
                 mb: 0.5,
-                fontSize: "1.5rem",
+                fontSize: "1rem",
               }}
             >
               <FormattedPrice amount={paymentData.totalInflow} />
@@ -277,7 +283,7 @@ const PaymentCards = () => {
         </Card>
       </Grid>
 
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid item xs={12} sm={6} md={2.5}>
         <Card
           sx={{
             borderRadius: "12px",
@@ -302,10 +308,10 @@ const PaymentCards = () => {
             <Typography
               variant="h5"
               sx={{
-                fontWeight: 600,
+                fontWeight: 500,
                 color: "#111827",
                 mb: 0.5,
-                fontSize: "1.5rem",
+                fontSize: "1rem",
               }}
             >
               <FormattedPrice amount={paymentData.totalOutflow} />
@@ -317,7 +323,7 @@ const PaymentCards = () => {
         </Card>
       </Grid>
 
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid item xs={12} sm={6} md={2.5}>
         <Card
           sx={{
             borderRadius: "12px",
@@ -342,13 +348,13 @@ const PaymentCards = () => {
             <Typography
               variant="h5"
               sx={{
-                fontWeight: 600,
+                fontWeight: 500,
                 color: "#111827",
                 mb: 0.5,
-                fontSize: "1.5rem",
+                fontSize: "1rem",
               }}
             >
-              <FormattedPrice amount={paymentData.totalWalletBalance} />
+              <FormattedPrice amount={paymentData?.totalWalletBalance} />
             </Typography>
             <Typography variant="caption" sx={{ color: "#9ca3af" }}>
               Available balance
@@ -357,7 +363,7 @@ const PaymentCards = () => {
         </Card>
       </Grid>
 
-      <Grid item xs={12} sm={6} md={3}>
+      <Grid item xs={12} sm={6} md={2.5}>
         <Card
           sx={{
             borderRadius: "12px",
@@ -382,10 +388,10 @@ const PaymentCards = () => {
             <Typography
               variant="h5"
               sx={{
-                fontWeight: 600,
+                fontWeight: 500,
                 color: "#111827",
                 mb: 0.5,
-                fontSize: "1.5rem",
+                fontSize: "1rem",
               }}
             >
               <FormattedPrice amount={paymentData.totalProfit} />
@@ -396,21 +402,67 @@ const PaymentCards = () => {
           </CardContent>
         </Card>
       </Grid>
+      <Grid item xs={12} sm={6} md={2.5}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Loss
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 500,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1rem",
+              }}
+            >
+              <FormattedPrice amount={paymentData.totalRevenueLoss} />
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Net loss incurred
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
     </Grid>
   );
 };
 
-// Subscription Cards Component
-const SubscriptionCards = () => {
+// Subscription Cards Componentx
+const SubscriptionCards = ({ subscriptionLoading, subscriptionData }) => {
   // Mock data - replace with actual API data
-  const subscriptionData = {
-    totalSubscribedUsers: 1250,
-    totalSubscriptionAmount: 45000000, // in cents/kobo
+  const subscriptionDataOptions = {
+    totalSubscribedUsers: subscriptionLoading
+      ? ""
+      : subscriptionData?.totals?.subscribers,
+    totalSubscriptionAmount: subscriptionLoading
+      ? ""
+      : subscriptionData?.totals?.subscription_amount, // in cents/kobo
+    totalSubscriptions: subscriptionLoading
+      ? ""
+      : subscriptionData?.totals?.subscriptions, // in cents/kobo
   };
 
   return (
     <Grid container spacing={3} className="mb-6">
-      <Grid item xs={12} md={6}>
+      <Grid item xs={12} md={4}>
         <Card
           sx={{
             borderRadius: "12px",
@@ -441,7 +493,7 @@ const SubscriptionCards = () => {
                 fontSize: "1.5rem",
               }}
             >
-              {subscriptionData.totalSubscribedUsers.toLocaleString()}
+              {subscriptionDataOptions.totalSubscribedUsers.toLocaleString()}
             </Typography>
             <Typography variant="caption" sx={{ color: "#9ca3af" }}>
               Active subscribers
@@ -450,7 +502,7 @@ const SubscriptionCards = () => {
         </Card>
       </Grid>
 
-      <Grid item xs={12} md={6}>
+      <Grid item xs={12} md={4}>
         <Card
           sx={{
             borderRadius: "12px",
@@ -482,11 +534,51 @@ const SubscriptionCards = () => {
               }}
             >
               <FormattedPrice
-                amount={subscriptionData.totalSubscriptionAmount}
+                amount={subscriptionDataOptions.totalSubscriptionAmount}
               />
             </Typography>
             <Typography variant="caption" sx={{ color: "#9ca3af" }}>
               Revenue generated
+            </Typography>
+          </CardContent>
+        </Card>
+      </Grid>
+
+      <Grid item xs={12} md={4}>
+        <Card
+          sx={{
+            borderRadius: "12px",
+            backgroundColor: "#fff",
+            boxShadow:
+              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            border: "1px solid #f3f4f6",
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#6b7280",
+                mb: 1,
+                fontSize: "14px",
+                fontWeight: 500,
+              }}
+            >
+              Total Subscriptions
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#111827",
+                mb: 0.5,
+                fontSize: "1.5rem",
+              }}
+            >
+              {subscriptionDataOptions.totalSubscriptions}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#9ca3af" }}>
+              Total Number Of Subscriptions
             </Typography>
           </CardContent>
         </Card>
@@ -496,12 +588,12 @@ const SubscriptionCards = () => {
 };
 
 // Marketing Automation Cards Component
-const MarketingCards = () => {
+const MarketingCards = ({ automationData, automationLoading }) => {
   // Mock data - replace with actual API data
   const marketingData = {
-    totalCredit: 85000000, // in cents/kobo
-    totalFunding: 120000000,
-    totalCreditUsed: 35000000,
+    totalCredit: automationData?.total_available_credit, // in cents/kobo
+    totalFunding: automationData?.total_funding,
+    totalCreditUsed: automationData?.total_credit_used,
   };
 
   return (
@@ -661,9 +753,6 @@ const TransactionModal = ({ open, onClose, data }) => (
   <CustomModal open={open} closeModal={onClose}>
     <div className="w-full flex flex-col items-start gap-4">
       <div className="flex items-center justify-between w-full">
-        <h2 className="text-gray-900 font-medium text-xl">
-          Transaction Details
-        </h2>
         <ClearRoundedIcon
           onClick={onClose}
           sx={{ color: "#1E1E1E", cursor: "pointer" }}
@@ -677,17 +766,17 @@ const TransactionModal = ({ open, onClose, data }) => (
 
         <div className="rounded-md w-full border border-gray-300 p-4 flex flex-col gap-3">
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">User:</span>
+            <span className="text-sm text-gray-500">Origin:</span>
             <span className="text-sm text-gray-900 font-medium">
-              {data?.user || "N/A"}
+              {data?.sender || "N/A"}
             </span>
           </div>
           <Divider />
 
           <div className="flex justify-between">
-            <span className="text-sm text-gray-500">Description:</span>
+            <span className="text-sm text-gray-500">Recipient:</span>
             <span className="text-sm text-gray-900 font-medium">
-              {data?.description || "N/A"}
+              {data?.recipient || "N/A"}
             </span>
           </div>
           <Divider />
@@ -711,7 +800,7 @@ const TransactionModal = ({ open, onClose, data }) => (
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Date:</span>
             <span className="text-sm text-gray-900 font-medium">
-              {formattedDate(data?.created_at)}
+              {formattedDate(data?.date)}
             </span>
           </div>
         </div>
@@ -940,6 +1029,12 @@ const WithdrawalModal = ({
 // Main Component
 const Transactions = () => {
   // Hooks
+  const { selectedDates } = useDateContext();
+
+  console.log("selectedDates", selectedDates);
+
+  console.log(selectedDates?.startDate, selectedDates?.endDate);
+
   const transactionState = useTransactionState();
   const { modals, modalData, openModal, closeModal } = useModalState();
   const { handleSubmit, control } = useForm({ mode: "all" });
@@ -955,11 +1050,33 @@ const Transactions = () => {
   console.log("transactionState", transactionState);
 
   // API Calls
-  const apiUrl = transactionsDataUrl(
+  const apiUrl = transactionsPaymentDataUrl(
     transactionState.currentPage,
     transactionState.rowsPerPage,
     transactionState.searchValue,
-    transactionState.trxFilter
+    transactionState.trxFilter,
+    selectedDates
+  );
+  const subscriptionApiUrl = transactionsSubscriptionDataUrl(
+    transactionState.currentPage,
+    transactionState.rowsPerPage,
+    transactionState.searchValue,
+    transactionState.trxFilter,
+    selectedDates
+  );
+  const automationApiUrl = transactionsMarketAutomationDataUrl(
+    transactionState.currentPage,
+    transactionState.rowsPerPage,
+    transactionState.searchValue,
+    transactionState.trxFilter,
+    selectedDates
+  );
+  const campaignUnitApiUrl = transactionsCampaignUnitDataUrl(
+    transactionState.currentPage,
+    transactionState.rowsPerPage,
+    transactionState.searchValue,
+    transactionState.trxFilter,
+    selectedDates
   );
 
   const queryKey = [
@@ -968,11 +1085,46 @@ const Transactions = () => {
     transactionState.trxFilter,
     transactionState.searchValue,
   ];
+  const queryKeySub = [
+    "fetchSubscriptionTransactionData",
+    subscriptionApiUrl,
+    transactionState.trxFilter,
+    transactionState.searchValue,
+  ];
+  const queryKeyAut = [
+    "fetchAutomationTransactionData",
+    automationApiUrl,
+    transactionState.trxFilter,
+    transactionState.searchValue,
+  ];
+  const queryKeyCampaign = [
+    "fetchCampaignUnitTransactionData",
+    campaignUnitApiUrl,
+    transactionState.trxFilter,
+    transactionState.searchValue,
+  ];
   const {
     isLoading,
     data: transactionsData,
     refetch,
   } = useFetchData(queryKey, apiUrl);
+  const {
+    isLoading: subscriptionLoading,
+    data: subscriptionData,
+    refetch: refetchSubscription,
+  } = useFetchData(queryKeySub, subscriptionApiUrl);
+  const {
+    isLoading: automationLoading,
+    data: automationData,
+    refetch: refetchAutomation,
+  } = useFetchData(queryKeyAut, automationApiUrl);
+  const {
+    isLoading: campaignLoading,
+    data: campaignUnitData,
+    refetch: refetchCampaign,
+  } = useFetchData(queryKeyCampaign, campaignUnitApiUrl);
+
+  console.log("transactionsData", transactionsData);
 
   // Event Handlers
   const handleTabChange = (event, newValue) => {
@@ -1033,6 +1185,57 @@ const Transactions = () => {
     }
   };
 
+  const PaymentCardsSkeleton = () => (
+    <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+      {[...Array(5)].map((_, idx) => (
+        <Box
+          key={idx}
+          sx={{
+            flex: 1,
+            height: 120,
+            borderRadius: "12px",
+            backgroundColor: "#f3f4f6",
+            boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            animation: "pulse 1.5s infinite",
+          }}
+          className="animate-pulse"
+        >
+          <Box
+            sx={{
+              width: "60%",
+              height: 18,
+              borderRadius: "4px",
+              backgroundColor: "#e0e0e0",
+              mb: 1,
+            }}
+          />
+          <Box
+            sx={{
+              width: "40%",
+              height: 28,
+              borderRadius: "4px",
+              backgroundColor: "#e0e0e0",
+              mb: 1,
+            }}
+          />
+          <Box
+            sx={{
+              width: "50%",
+              height: 14,
+              borderRadius: "4px",
+              backgroundColor: "#e0e0e0",
+            }}
+          />
+        </Box>
+      ))}
+    </Box>
+  );
+  // ...existing code...
+
   const checkNameForWithdrawalReq = async () => {
     try {
       setIsPosting(true);
@@ -1065,14 +1268,18 @@ const Transactions = () => {
       case TRANSACTION_TABS.PAYMENT:
         return (
           <>
-            <PaymentCards />
+            {isLoading ? (
+              <PaymentCardsSkeleton />
+            ) : (
+              <PaymentCards transactionsData={transactionsData} />
+            )}
             <PaymentTable
               isLoading={isLoading}
               handleOpenModal={handleOpenModal}
               transactionsData={transactionsData}
               page={transactionState.page}
               onPageChange={handlePageChange}
-              totalPages={transactionsData?.pages}
+              totalPages={transactionsData?.transactions?.total_pages}
               rowsPerPage={transactionState.rowsPerPage}
               currentPage={transactionState.currentPage}
             />
@@ -1082,23 +1289,53 @@ const Transactions = () => {
       case TRANSACTION_TABS.SUBSCRIPTION:
         return (
           <>
-            <SubscriptionCards />
-            <Subscription />
+            <SubscriptionCards
+              subscriptionLoading={subscriptionLoading}
+              subscriptionData={subscriptionData}
+            />
+            <Subscription
+              subscriptionLoading={subscriptionLoading}
+              subscriptionData={subscriptionData}
+              rowsPerPage={transactionState.rowsPerPage}
+              currentPage={transactionState.currentPage}
+              onPageChange={handlePageChange}
+              totalPages={subscriptionData?.pages || 20}
+              page={transactionState.page}
+            />
           </>
         );
 
       case TRANSACTION_TABS.MARKETING:
         return (
           <>
-            <MarketingCards />
+            <MarketingCards
+              automationLoading={automationLoading}
+              automationData={automationData}
+            />
             <MarketingSubTabs
               activeTab={transactionState.marketingTab}
               onTabChange={handleMarketingTabChange}
             />
             {transactionState.marketingTab === MARKETING_TABS.FUNDING ? (
-              <Funding />
+              <Funding
+                automationData={automationData}
+                automationLoading={automationLoading}
+                page={transactionState.page}
+                onPageChange={handlePageChange}
+                totalPages={automationData?.total_pages}
+                rowsPerPage={transactionState.rowsPerPage}
+                currentPage={automationData?.page || 1}
+              />
             ) : (
-              <CampaignUnit />
+              <CampaignUnit
+                campaignUnitData={campaignUnitData}
+                campaignLoading={campaignLoading}
+                page={transactionState.page}
+                rowsPerPage={transactionState.rowsPerPage}
+                totalPages={campaignUnitData?.total_pages}
+                currentPage={campaignUnitData?.page || 1}
+                onPageChange={handlePageChange}
+              />
             )}
           </>
         );
@@ -1158,11 +1395,11 @@ const Transactions = () => {
                 onSearchChange={transactionState.setSearchValue}
               />
 
-              <FilterButtons
+              {/* <FilterButtons
                 activeFilter={transactionState.trxFilter}
                 onFilterChange={transactionState.setTrxFilter}
                 activeTab={transactionState.activeTab}
-              />
+              /> */}
             </>
           )}
 
