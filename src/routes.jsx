@@ -24,6 +24,7 @@ import KYCDetailPage from "./pages/kyc/KYCDetailPage";
 import UserManagement from "./pages/users/UserManagement";
 import UserProfile from "./pages/users/UserProfile";
 import SubscriptionManagement from "./pages/subscriptions/SubscriptionManagement";
+import PaymentsDashboard from "./pages/payments/PaymentsDashboard";
 import EngagementHub from "./pages/communications/EngagementHub";
 import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
 import RolesPermissions from "./pages/adminstrator/RolesPermissions";
@@ -98,6 +99,11 @@ const RoutesContainer = () => {
       component: <SubscriptionManagement />,
       path: "/subscriptions",
       name: "Subscription Management",
+    },
+    {
+      component: <PaymentsDashboard />,
+      path: "/payments",
+      name: "Payments Dashboard",
     },
   ];
   return (

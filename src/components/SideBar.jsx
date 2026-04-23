@@ -13,6 +13,7 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import CardMembershipOutlinedIcon from "@mui/icons-material/CardMembershipOutlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import sinkTwo from "../assets/sink/sink2.png";
 
 const SideBar = () => {
@@ -47,6 +48,15 @@ const SideBar = () => {
           link: "users",
           icon: (active) => (
             <GroupOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
+        },
+        {
+          name: "Payments",
+          link: "payments",
+          icon: (active) => (
+            <PaymentsOutlinedIcon
               sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
             />
           ),

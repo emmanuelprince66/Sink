@@ -8,6 +8,9 @@ import {
   Chip,
   Divider,
   Grid,
+  LinearProgress,
+  MenuItem,
+  Select,
   Tab,
   Tabs,
   Tooltip,
@@ -21,13 +24,20 @@ import {
   TrendingDownOutlined as OutflowIcon,
   ReceiptLongOutlined as TrxIcon,
   PaidOutlined as CommissionIcon,
-  LocalShippingOutlined as ShippingIcon,
   AccessTimeOutlined as TimeIcon,
-  VerifiedUserOutlined as VerifiedIcon,
   OpenInNewRounded as OpenIcon,
+  CheckRounded as CheckIcon,
+  CloseRounded as XIcon,
+  AllInclusiveRounded as InfinityIcon,
 } from "@mui/icons-material";
 import FormattedPrice from "../../utils/FormattedPrice";
-import { findUser, findPlan } from "./userData";
+import {
+  findUser,
+  findPlan,
+  PLAN_LIMIT_FIELDS,
+  PLAN_FEATURE_FIELDS,
+  formatLimit,
+} from "./userData";
 
 const STATUS_STYLE = {
   active: { bg: "#E6F7EA", color: "#02981D", label: "Active" },
@@ -101,13 +111,71 @@ const StatTile = ({ icon, color, bg, label, value, sub }) => (
   </Card>
 );
 
-const RECENT_TRANSACTIONS = [
+const UsageBar = ({ label, used, limit }) => {
+  const isUnlimited = limit === null || limit === undefined;
+  const pct = isUnlimited
+    ? 0
+    : Math.min(100, Math.round((used / Math.max(limit, 1)) * 100));
+  const danger = pct >= 90;
+  return (
+    <div className="border border-[#EFEFEF] rounded-lg p-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[12px] text-primary_grey_2 font-medium">{label}</p>
+        <p className="text-[13px] font-semibold text-general flex items-center gap-1">
+          {used.toLocaleString()}{" "}
+          <span className="text-primary_grey_2 font-normal">/</span>{" "}
+          {isUnlimited ? (
+            <InfinityIcon sx={{ fontSize: 14, color: "#02981D" }} />
+          ) : (
+            limit.toLocaleString()
+          )}
+        </p>
+      </div>
+      {!isUnlimited && (
+        <LinearProgress
+          variant="determinate"
+          value={pct}
+          sx={{
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: "#F5F5F5",
+            "& .MuiLinearProgress-bar": {
+              backgroundColor: danger ? "#DC3545" : "#02981D",
+            },
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+const FeaturePill = ({ label, on }) => (
+  <span
+    className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-md"
+    style={{
+      background: on ? "#E6F7EA" : "#F5F5F5",
+      color: on ? "#02981D" : "#9CA3AF",
+      fontWeight: on ? 600 : 500,
+    }}
+  >
+    {on ? (
+      <CheckIcon sx={{ fontSize: 12 }} />
+    ) : (
+      <XIcon sx={{ fontSize: 12 }} />
+    )}
+    {label}
+  </span>
+);
+
+const PAYMENT_TRX = [
   {
     id: "TRX-9821",
     type: "Wallet Credit",
     amount: 25000,
     date: "2026-04-21 14:22",
     status: "Successful",
+    method: "Card",
+    outlet: "out-1",
   },
   {
     id: "TRX-9820",
@@ -115,6 +183,8 @@ const RECENT_TRANSACTIONS = [
     amount: 25000,
     date: "2026-04-12 09:00",
     status: "Successful",
+    method: "Card",
+    outlet: "out-1",
   },
   {
     id: "TRX-9787",
@@ -122,6 +192,8 @@ const RECENT_TRANSACTIONS = [
     amount: 12000,
     date: "2026-04-10 16:42",
     status: "Successful",
+    method: "Bank Transfer",
+    outlet: "out-2",
   },
   {
     id: "TRX-9712",
@@ -129,16 +201,19 @@ const RECENT_TRANSACTIONS = [
     amount: 1500,
     date: "2026-04-08 11:11",
     status: "Failed",
+    method: "Card",
+    outlet: "out-1",
   },
 ];
 
-const RECENT_DELIVERIES = [
+const LOGISTIC_TRX = [
   {
     id: "ORD-10298",
     receiver: "Adaeze Okoro",
     status: "in_transit",
     amount: 4500,
     date: "2026-04-22",
+    outlet: "out-1",
   },
   {
     id: "ORD-10301",
@@ -146,6 +221,7 @@ const RECENT_DELIVERIES = [
     status: "failed",
     amount: 5500,
     date: "2026-04-21",
+    outlet: "out-2",
   },
   {
     id: "ORD-10300",
@@ -153,6 +229,7 @@ const RECENT_DELIVERIES = [
     status: "delivered",
     amount: 6800,
     date: "2026-04-21",
+    outlet: "out-1",
   },
 ];
 
@@ -167,6 +244,7 @@ const UserProfile = () => {
   const navigate = useNavigate();
   const user = useMemo(() => findUser(id), [id]);
   const [tab, setTab] = useState(0);
+  const [outlet, setOutlet] = useState("all");
 
   if (!user) {
     return (
@@ -197,6 +275,13 @@ const UserProfile = () => {
     .slice(0, 2)
     .toUpperCase();
 
+  const filteredPayments = PAYMENT_TRX.filter((t) =>
+    outlet === "all" ? true : t.outlet === outlet
+  );
+  const filteredLogistics = LOGISTIC_TRX.filter((t) =>
+    outlet === "all" ? true : t.outlet === outlet
+  );
+
   return (
     <div className="w-full flex flex-col gap-6">
       {/* Header */}
@@ -222,6 +307,25 @@ const UserProfile = () => {
               <p className="text-[13px] text-primary_grey_2 mt-0.5">
                 {user.id} · {user.type} · Joined {user.joined}
               </p>
+              <div className="flex items-center gap-2 flex-wrap mt-2">
+                <FeaturePill
+                  label="Logistics Automation"
+                  on={user.logisticsAutomation}
+                />
+                <FeaturePill
+                  label="Buy Now Pay Later"
+                  on={user.bnplEnabled}
+                />
+                <Chip
+                  size="small"
+                  label={user.tier}
+                  sx={{
+                    background: "#F6FFF8",
+                    color: "#02981D",
+                    fontWeight: 600,
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -268,6 +372,28 @@ const UserProfile = () => {
           )}
         </div>
       </div>
+
+      {/* Outlet filter (only for businesses with > 1 outlet) */}
+      {user.outlets && user.outlets.length > 1 && (
+        <div className="flex items-center gap-3 bg-[#F8F9FB] border border-[#EFEFEF] rounded-xl px-3 py-2">
+          <span className="text-[12px] uppercase tracking-wide text-primary_grey_2 font-semibold">
+            Outlet
+          </span>
+          <Select
+            size="small"
+            value={outlet}
+            onChange={(e) => setOutlet(e.target.value)}
+            sx={{ minWidth: 220, background: "#fff" }}
+          >
+            <MenuItem value="all">All Outlets ({user.outlets.length})</MenuItem>
+            {user.outlets.map((o) => (
+              <MenuItem key={o.id} value={o.id}>
+                {o.name} — {o.location}
+              </MenuItem>
+            ))}
+          </Select>
+        </div>
+      )}
 
       {/* Financial overview tiles */}
       <Grid container spacing={2}>
@@ -350,8 +476,9 @@ const UserProfile = () => {
             >
               <Tab label="Overview" />
               <Tab label="Subscription" />
-              <Tab label="Transactions" />
-              <Tab label="Logistics" />
+              <Tab label="Usage & Limits" />
+              <Tab label="Payment Transactions" />
+              <Tab label="Logistic Transactions" />
             </Tabs>
           </Box>
 
@@ -425,6 +552,26 @@ const UserProfile = () => {
                           </button>
                         </Tooltip>
                       )
+                    }
+                  />
+                  <Divider />
+                  <InfoRow
+                    label="Logistics Automation"
+                    value={
+                      <FeaturePill
+                        label={user.logisticsAutomation ? "Enabled" : "Off"}
+                        on={user.logisticsAutomation}
+                      />
+                    }
+                  />
+                  <Divider />
+                  <InfoRow
+                    label="Buy Now Pay Later"
+                    value={
+                      <FeaturePill
+                        label={user.bnplEnabled ? "Enabled" : "Off"}
+                        on={user.bnplEnabled}
+                      />
                     }
                   />
                   <Divider />
@@ -520,8 +667,86 @@ const UserProfile = () => {
             </Grid>
           )}
 
-          {/* Transactions tab */}
-          {tab === 2 && (
+          {/* Usage & Limits tab */}
+          {tab === 2 && plan && (
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
+                  Usage vs. Plan Limits
+                </p>
+                <div className="flex flex-col gap-2">
+                  <UsageBar
+                    label="Attendants"
+                    used={user.usage.attendants}
+                    limit={plan.limits.attendants}
+                  />
+                  <UsageBar
+                    label="Inventory (Products)"
+                    used={user.usage.inventory}
+                    limit={plan.limits.inventory}
+                  />
+                  <UsageBar
+                    label="Customers Added"
+                    used={user.usage.customers}
+                    limit={plan.limits.customers}
+                  />
+                  <UsageBar
+                    label="Outlets"
+                    used={user.outlets?.length || 0}
+                    limit={plan.limits.outlets}
+                  />
+                </div>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
+                  Plan Features
+                </p>
+                <div className="border border-[#EFEFEF] rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-y-2">
+                  {PLAN_FEATURE_FIELDS.map((f) => (
+                    <FeaturePill
+                      key={f.key}
+                      label={f.label}
+                      on={!!plan.features[f.key]}
+                    />
+                  ))}
+                </div>
+
+                <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mt-4 mb-2">
+                  Outlets
+                </p>
+                <div className="border border-[#EFEFEF] rounded-xl divide-y divide-[#F5F5F5]">
+                  {user.outlets?.map((o) => (
+                    <div
+                      key={o.id}
+                      className="flex items-center justify-between p-3"
+                    >
+                      <div>
+                        <p className="text-[13px] text-general font-medium">
+                          {o.name}
+                        </p>
+                        <p className="text-[12px] text-primary_grey_2">
+                          {o.location}
+                        </p>
+                      </div>
+                      <Chip
+                        size="small"
+                        label="Active"
+                        sx={{
+                          background: "#E6F7EA",
+                          color: "#02981D",
+                          fontWeight: 600,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* Payment Transactions tab */}
+          {tab === 3 && (
             <div className="w-full overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -529,52 +754,67 @@ const UserProfile = () => {
                     <th className="py-3 px-3">Reference</th>
                     <th className="py-3 px-3">Type</th>
                     <th className="py-3 px-3">Amount</th>
+                    <th className="py-3 px-3">Method</th>
                     <th className="py-3 px-3">Date</th>
                     <th className="py-3 px-3">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {RECENT_TRANSACTIONS.map((t) => (
-                    <tr
-                      key={t.id}
-                      className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
-                    >
-                      <td className="py-4 px-3 text-[13px] font-medium text-general">
-                        {t.id}
-                      </td>
-                      <td className="py-4 px-3 text-[13px] text-general">
-                        {t.type}
-                      </td>
-                      <td className="py-4 px-3 text-[13px] text-general">
-                        <FormattedPrice amount={t.amount} />
-                      </td>
-                      <td className="py-4 px-3 text-[12px] text-primary_grey_2">
-                        {t.date}
-                      </td>
-                      <td className="py-4 px-3">
-                        <span
-                          className="text-[12px] font-medium px-3 py-1 rounded-full"
-                          style={{
-                            background:
-                              t.status === "Successful"
-                                ? "#E6F7EA"
-                                : "#FDECEC",
-                            color:
-                              t.status === "Successful"
-                                ? "#02981D"
-                                : "#DC3545",
-                          }}
-                        >
-                          {t.status}
-                        </span>
+                  {filteredPayments.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="py-10 text-center text-primary_grey_2"
+                      >
+                        No payment transactions for this outlet selection.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredPayments.map((t) => (
+                      <tr
+                        key={t.id}
+                        className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
+                      >
+                        <td className="py-4 px-3 text-[13px] font-medium text-general">
+                          {t.id}
+                        </td>
+                        <td className="py-4 px-3 text-[13px] text-general">
+                          {t.type}
+                        </td>
+                        <td className="py-4 px-3 text-[13px] text-general">
+                          <FormattedPrice amount={t.amount} />
+                        </td>
+                        <td className="py-4 px-3 text-[12px] text-primary_grey_2">
+                          {t.method}
+                        </td>
+                        <td className="py-4 px-3 text-[12px] text-primary_grey_2">
+                          {t.date}
+                        </td>
+                        <td className="py-4 px-3">
+                          <span
+                            className="text-[12px] font-medium px-3 py-1 rounded-full"
+                            style={{
+                              background:
+                                t.status === "Successful"
+                                  ? "#E6F7EA"
+                                  : "#FDECEC",
+                              color:
+                                t.status === "Successful"
+                                  ? "#02981D"
+                                  : "#DC3545",
+                            }}
+                          >
+                            {t.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
               <div className="mt-4 flex justify-end">
                 <Button
-                  onClick={() => navigate("/transactions")}
+                  onClick={() => navigate("/payments")}
                   endIcon={<OpenIcon />}
                   sx={{
                     textTransform: "none",
@@ -582,18 +822,18 @@ const UserProfile = () => {
                     fontWeight: 600,
                   }}
                 >
-                  View all transactions
+                  View all payment transactions
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Logistics tab */}
-          {tab === 3 && (
+          {/* Logistic Transactions tab */}
+          {tab === 4 && (
             <>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[14px] font-semibold text-general">
-                  Recent Deliveries ({user.deliveries})
+                  Logistic / Online Transactions ({user.deliveries})
                 </p>
                 <Button
                   onClick={() => navigate("/logistics")}
@@ -619,28 +859,39 @@ const UserProfile = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {RECENT_DELIVERIES.map((d) => (
-                      <tr
-                        key={d.id}
-                        className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
-                      >
-                        <td className="py-4 px-3 text-[13px] font-medium text-general">
-                          {d.id}
-                        </td>
-                        <td className="py-4 px-3 text-[13px] text-general">
-                          {d.receiver}
-                        </td>
-                        <td className="py-4 px-3 text-[13px] text-general">
-                          <FormattedPrice amount={d.amount} />
-                        </td>
-                        <td className="py-4 px-3 text-[12px] text-primary_grey_2">
-                          {d.date}
-                        </td>
-                        <td className="py-4 px-3">
-                          <Pill map={DELIVERY_STATUS} value={d.status} />
+                    {filteredLogistics.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="py-10 text-center text-primary_grey_2"
+                        >
+                          No deliveries for this outlet selection.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredLogistics.map((d) => (
+                        <tr
+                          key={d.id}
+                          className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
+                        >
+                          <td className="py-4 px-3 text-[13px] font-medium text-general">
+                            {d.id}
+                          </td>
+                          <td className="py-4 px-3 text-[13px] text-general">
+                            {d.receiver}
+                          </td>
+                          <td className="py-4 px-3 text-[13px] text-general">
+                            <FormattedPrice amount={d.amount} />
+                          </td>
+                          <td className="py-4 px-3 text-[12px] text-primary_grey_2">
+                            {d.date}
+                          </td>
+                          <td className="py-4 px-3">
+                            <Pill map={DELIVERY_STATUS} value={d.status} />
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

@@ -1,22 +1,36 @@
+// Subscription plans now include usage Limits and Feature toggles
+// Limits: number OR null (∞ = Unlimited)
+// Features: boolean toggles
 export const SUBSCRIPTION_PLANS = [
   {
-    id: "syncpro",
-    name: "Syncpro",
-    color: "#02981D",
-    bg: "#E6F7EA",
-    price: 25000,
+    id: "basic",
+    name: "Basic",
+    color: "#B26A00",
+    bg: "#FFF7E8",
+    price: 4500,
     cycle: "Monthly",
     description:
-      "Premium plan for high-volume merchants — unlimited transactions, priority support.",
-    features: [
-      "Unlimited transactions",
-      "Priority support",
-      "Marketing automation",
-      "Logistics integration",
-      "Custom reports",
-    ],
-    activeSubscribers: 1842,
-    revenueMTD: 46050000,
+      "Starter plan for small merchants — essential limits and core features.",
+    limits: {
+      users: 1,
+      attendants: 0,
+      outlets: 1,
+      sales: 40,
+      invoices: 0,
+      inventory: 5,
+      customers: 50,
+    },
+    features: {
+      bulkEmail: false,
+      bulkSms: false,
+      inStoreCheckout: true,
+      storefront: false,
+      trackIncome: true,
+      bankExpense: false,
+      production: false,
+    },
+    activeSubscribers: 412,
+    revenueMTD: 1854000,
   },
   {
     id: "syncplus",
@@ -27,28 +41,107 @@ export const SUBSCRIPTION_PLANS = [
     cycle: "Monthly",
     description:
       "Mid-tier plan for growing businesses — generous limits and standard support.",
-    features: [
-      "Up to 5,000 transactions/month",
-      "Standard support",
-      "Basic marketing automation",
-      "Logistics access",
-    ],
+    limits: {
+      users: 5,
+      attendants: 3,
+      outlets: 2,
+      sales: 500,
+      invoices: 100,
+      inventory: 250,
+      customers: 1000,
+    },
+    features: {
+      bulkEmail: true,
+      bulkSms: false,
+      inStoreCheckout: true,
+      storefront: true,
+      trackIncome: true,
+      bankExpense: true,
+      production: false,
+    },
     activeSubscribers: 3210,
     revenueMTD: 30495000,
   },
   {
+    id: "syncpro",
+    name: "Syncpro",
+    color: "#02981D",
+    bg: "#E6F7EA",
+    price: 25000,
+    cycle: "Monthly",
+    description:
+      "Premium plan for high-volume merchants — unlimited transactions, priority support.",
+    limits: {
+      users: null, // ∞
+      attendants: null,
+      outlets: null,
+      sales: null,
+      invoices: null,
+      inventory: null,
+      customers: null,
+    },
+    features: {
+      bulkEmail: true,
+      bulkSms: true,
+      inStoreCheckout: true,
+      storefront: true,
+      trackIncome: true,
+      bankExpense: true,
+      production: true,
+    },
+    activeSubscribers: 1842,
+    revenueMTD: 46050000,
+  },
+  {
     id: "trial",
     name: "Trial",
-    color: "#B26A00",
-    bg: "#FFF7E8",
+    color: "#0369A1",
+    bg: "#E0F2FE",
     price: 0,
     cycle: "14-day Trial",
     description:
       "Free 14-day trial — automatically downgrades to Free or upgrades to a paid plan.",
-    features: ["Up to 50 transactions", "Email support only"],
+    limits: {
+      users: 1,
+      attendants: 0,
+      outlets: 1,
+      sales: 50,
+      invoices: 10,
+      inventory: 10,
+      customers: 25,
+    },
+    features: {
+      bulkEmail: false,
+      bulkSms: false,
+      inStoreCheckout: true,
+      storefront: false,
+      trackIncome: true,
+      bankExpense: false,
+      production: false,
+    },
     activeSubscribers: 482,
     revenueMTD: 0,
   },
+];
+
+export const PLAN_LIMIT_FIELDS = [
+  { key: "users", label: "Users (Staff Accounts)" },
+  { key: "attendants", label: "Attendants" },
+  { key: "outlets", label: "Businesses / Outlets" },
+  { key: "sales", label: "Sales / Month" },
+  { key: "invoices", label: "Invoices" },
+  { key: "inventory", label: "Inventory (Products)" },
+  { key: "customers", label: "Customers" },
+];
+
+export const PLAN_FEATURE_FIELDS = [
+  { key: "bulkEmail", label: "Bulk Email" },
+  { key: "bulkSms", label: "Bulk SMS" },
+  { key: "inStoreCheckout", label: "In-store Checkout" },
+  { key: "storefront", label: "Storefront" },
+  { key: "trackIncome", label: "Track Income" },
+  { key: "bankExpense", label: "Bank Expense Tracking" },
+  { key: "production", label: "Production" },
 ];
 
 export const SAMPLE_USERS = [
@@ -76,6 +169,13 @@ export const SAMPLE_USERS = [
     transactions: 1842,
     commission: 412800,
     deliveries: 312,
+    bnplEnabled: true,
+    logisticsAutomation: true,
+    usage: { attendants: 8, inventory: 412, customers: 1280 },
+    outlets: [
+      { id: "out-1", name: "Ikeja Branch", location: "Ikeja, Lagos" },
+      { id: "out-2", name: "Lekki Branch", location: "Lekki, Lagos" },
+    ],
   },
   {
     id: "USR-10002",
@@ -101,6 +201,14 @@ export const SAMPLE_USERS = [
     transactions: 4218,
     commission: 980200,
     deliveries: 1024,
+    bnplEnabled: true,
+    logisticsAutomation: true,
+    usage: { attendants: 22, inventory: 1840, customers: 3210 },
+    outlets: [
+      { id: "out-1", name: "Ikoyi HQ", location: "Ikoyi, Lagos" },
+      { id: "out-2", name: "Apapa Hub", location: "Apapa, Lagos" },
+      { id: "out-3", name: "Abuja Hub", location: "Wuse 2, Abuja" },
+    ],
   },
   {
     id: "USR-10003",
@@ -126,6 +234,12 @@ export const SAMPLE_USERS = [
     transactions: 218,
     commission: 42100,
     deliveries: 18,
+    bnplEnabled: false,
+    logisticsAutomation: false,
+    usage: { attendants: 1, inventory: 88, customers: 312 },
+    outlets: [
+      { id: "out-1", name: "Surulere Store", location: "Surulere, Lagos" },
+    ],
   },
   {
     id: "USR-10004",
@@ -151,6 +265,10 @@ export const SAMPLE_USERS = [
     transactions: 6,
     commission: 720,
     deliveries: 1,
+    bnplEnabled: false,
+    logisticsAutomation: false,
+    usage: { attendants: 0, inventory: 4, customers: 8 },
+    outlets: [{ id: "out-1", name: "Kano Store", location: "Kano" }],
   },
   {
     id: "USR-10005",
@@ -176,6 +294,12 @@ export const SAMPLE_USERS = [
     transactions: 612,
     commission: 89400,
     deliveries: 42,
+    bnplEnabled: false,
+    logisticsAutomation: true,
+    usage: { attendants: 2, inventory: 188, customers: 612 },
+    outlets: [
+      { id: "out-1", name: "Lekki Phase 1 Store", location: "Lekki, Lagos" },
+    ],
   },
   {
     id: "USR-10006",
@@ -201,6 +325,13 @@ export const SAMPLE_USERS = [
     transactions: 2042,
     commission: 521000,
     deliveries: 612,
+    bnplEnabled: true,
+    logisticsAutomation: true,
+    usage: { attendants: 14, inventory: 920, customers: 2210 },
+    outlets: [
+      { id: "out-1", name: "Sabon Gari HQ", location: "Kano" },
+      { id: "out-2", name: "Tudun Wada Branch", location: "Kano" },
+    ],
   },
   {
     id: "USR-10007",
@@ -226,9 +357,19 @@ export const SAMPLE_USERS = [
     transactions: 410,
     commission: 78200,
     deliveries: 88,
+    bnplEnabled: false,
+    logisticsAutomation: true,
+    usage: { attendants: 3, inventory: 220, customers: 488 },
+    outlets: [
+      { id: "out-1", name: "Yaba Mart", location: "Yaba, Lagos" },
+      { id: "out-2", name: "Mushin Mart", location: "Mushin, Lagos" },
+    ],
   },
 ];
 
 export const findUser = (id) => SAMPLE_USERS.find((u) => u.id === id);
 
 export const findPlan = (id) => SUBSCRIPTION_PLANS.find((p) => p.id === id);
+
+export const formatLimit = (n) =>
+  n === null || n === undefined ? "∞" : n.toLocaleString();
