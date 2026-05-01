@@ -80,7 +80,7 @@ const STATUS_OPTIONS = ["Pending", "Successful", "Failed"];
 
 // Custom Hooks
 const useTransactionState = () => {
-  const [activeTab, setActiveTab] = useState(TRANSACTION_TABS.PAYMENT);
+  const [activeTab, setActiveTab] = useState(TRANSACTION_TABS.MARKETING);
   const [marketingTab, setMarketingTab] = useState(MARKETING_TABS.FUNDING);
   const [searchValue, setSearchValue] = useState("");
   const [trxFilter, setTrxFilter] = useState("");
@@ -1386,10 +1386,13 @@ const Transactions = () => {
                 },
               }}
             >
-              <Tab label="Payment Transactions" />
-              <Tab label="Subscription Transactions" />
-              <Tab label="Marketing Automation" />
-              <Tab label="Campaign" />
+              {/* <Tab value={TRANSACTION_TABS.PAYMENT} label="Payment Transactions" /> */}
+              {/* <Tab value={TRANSACTION_TABS.SUBSCRIPTION} label="Subscription Transactions" /> */}
+              <Tab
+                value={TRANSACTION_TABS.MARKETING}
+                label="Marketing Automation"
+              />
+              <Tab value={TRANSACTION_TABS.CAMPAIGN} label="Campaign" />
             </Tabs>
           </Box>
 
