@@ -23,6 +23,7 @@ import { ToastContainer } from "react-toastify";
 import CampaignUnit from "./transactions/CampaignUnit";
 import Funding from "./transactions/Funding";
 import Subscription from "./transactions/Subscription";
+import CampaignDashboard from "./transactions/CampaignDashboard";
 // Components and Utils
 import CustomCard from "../components/CustomCard";
 import CustomModal from "../components/CustomModal";
@@ -59,6 +60,7 @@ const TRANSACTION_TABS = {
   PAYMENT: 0,
   SUBSCRIPTION: 1,
   MARKETING: 2,
+  CAMPAIGN: 3,
 };
 
 const MARKETING_TABS = {
@@ -450,14 +452,14 @@ const SubscriptionCards = ({ subscriptionLoading, subscriptionData }) => {
   // Mock data - replace with actual API data
   const subscriptionDataOptions = {
     totalSubscribedUsers: subscriptionLoading
-      ? ""
-      : subscriptionData?.totals?.subscribers,
+      ? 0
+      : subscriptionData?.totals?.subscribers ?? 0,
     totalSubscriptionAmount: subscriptionLoading
-      ? ""
-      : subscriptionData?.totals?.subscription_amount, // in cents/kobo
+      ? 0
+      : subscriptionData?.totals?.subscription_amount ?? 0, // in cents/kobo
     totalSubscriptions: subscriptionLoading
-      ? ""
-      : subscriptionData?.totals?.subscriptions, // in cents/kobo
+      ? 0
+      : subscriptionData?.totals?.subscriptions ?? 0, // in cents/kobo
   };
 
   return (
@@ -1340,6 +1342,9 @@ const Transactions = () => {
           </>
         );
 
+      case TRANSACTION_TABS.CAMPAIGN:
+        return <CampaignDashboard />;
+
       default:
         return (
           <TransactionTable
@@ -1384,11 +1389,13 @@ const Transactions = () => {
               <Tab label="Payment Transactions" />
               <Tab label="Subscription Transactions" />
               <Tab label="Marketing Automation" />
+              <Tab label="Campaign" />
             </Tabs>
           </Box>
 
           {/* Show search and filter only for payment and subscription tabs */}
-          {transactionState.activeTab !== TRANSACTION_TABS.MARKETING && (
+          {transactionState.activeTab !== TRANSACTION_TABS.MARKETING &&
+            transactionState.activeTab !== TRANSACTION_TABS.CAMPAIGN && (
             <>
               <SearchAndExport
                 searchValue={transactionState.searchValue}
