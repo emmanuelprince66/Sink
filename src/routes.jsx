@@ -1,33 +1,32 @@
-import React from "react";
-import Login from "./pages/Login";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import ForgetPassword from "./pages/ForgetPassword";
-import MainLayout from "./layout/MainLayout";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { queryClient } from "./helpers/queryClient";
-import { AuthProvider } from "./utils/AuthContext";
+import MainLayout from "./layout/MainLayout";
+import Administrators from "./pages/Administrators";
+import ForgetPassword from "./pages/ForgetPassword";
+import Loans from "./pages/Loans";
+import Login from "./pages/Login";
+import Notifications from "./pages/Notifications";
 import Overview from "./pages/Overview";
 import Members from "./pages/members/Members";
-import Loans from "./pages/Loans";
-import Notifications from "./pages/Notifications";
-import Administrators from "./pages/Administrators";
 import Savings from "./pages/savings/Savings";
+import { AuthProvider } from "./utils/AuthContext";
 import { DateProvider } from "./utils/DateContext";
 
 import { createTheme, ThemeProvider } from "@mui/material/styles";
-import Investment from "./pages/investments/Investment";
 import Transactions from "./pages/Transactions";
-import Rmerchant from "./pages/r-merchant/Rmerchant";
-import MemberProfile from "./pages/members/MemberProfile";
-import KYCManagement from "./pages/kyc/KYCManagement";
+import RolesPermissions from "./pages/adminstrator/RolesPermissions";
+import EngagementHub from "./pages/communications/EngagementHub";
+import Investment from "./pages/investments/Investment";
 import KYCDetailPage from "./pages/kyc/KYCDetailPage";
+import KYCManagement from "./pages/kyc/KYCManagement";
+import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
+import MemberProfile from "./pages/members/MemberProfile";
+import PaymentsDashboard from "./pages/payments/PaymentsDashboard";
+import Rmerchant from "./pages/r-merchant/Rmerchant";
+import SubscriptionManagement from "./pages/subscriptions/SubscriptionManagement";
 import UserManagement from "./pages/users/UserManagement";
 import UserProfile from "./pages/users/UserProfile";
-import SubscriptionManagement from "./pages/subscriptions/SubscriptionManagement";
-import PaymentsDashboard from "./pages/payments/PaymentsDashboard";
-import EngagementHub from "./pages/communications/EngagementHub";
-import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
-import RolesPermissions from "./pages/adminstrator/RolesPermissions";
 
 const theme = createTheme({
   typography: {
@@ -42,7 +41,7 @@ const RoutesContainer = () => {
     { component: <Members />, path: "/members", name: "Members" },
     { component: <Savings />, path: "/savings", name: "Savings" },
     { component: <Investment />, path: "/investments", name: "Investments" },
-    { component: <Transactions />, path: "/transactions", name: "Transaction" },
+    { component: <Transactions />, path: "/campaign", name: "Campaign" },
     { component: <Loans />, path: "/loans", name: "Loans" },
     { component: <Rmerchant />, path: "/r-merchant", name: "Rmerchant" },
     {

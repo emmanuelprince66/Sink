@@ -1,19 +1,18 @@
-import React from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
-import Cookies from "js-cookie";
-import Sone from "../assets/sidebar/Sone";
-import Stwo from "../assets/sidebar/Stwo";
-import Ssix from "../assets/sidebar/Ssix";
-import Sseven from "../assets/sidebar/Sseven";
-import Seight from "../assets/sidebar/Seight";
-import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
-import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
-import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
-import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
-import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import CardMembershipOutlinedIcon from "@mui/icons-material/CardMembershipOutlined";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import Cookies from "js-cookie";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import Seight from "../assets/sidebar/Seight";
+import Sone from "../assets/sidebar/Sone";
+import Sseven from "../assets/sidebar/Sseven";
+import Ssix from "../assets/sidebar/Ssix";
+import Stwo from "../assets/sidebar/Stwo";
 import sinkTwo from "../assets/sink/sink2.png";
 
 const SideBar = () => {
@@ -62,8 +61,8 @@ const SideBar = () => {
           ),
         },
         {
-          name: "Transactions",
-          link: "transactions",
+          name: "Campaign",
+          link: "campaign",
           icon: (active) => <Seight color={active ? "white" : "#5E5E5E"} />,
         },
         {
