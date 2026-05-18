@@ -124,24 +124,34 @@ export const SUBSCRIPTION_PLANS = [
   },
 ];
 
+// Map API field names → human labels. Keys MUST match the API.
 export const PLAN_LIMIT_FIELDS = [
-  { key: "users", label: "Users (Staff Accounts)" },
-  { key: "attendants", label: "Attendants" },
-  { key: "outlets", label: "Businesses / Outlets" },
-  { key: "sales", label: "Sales / Month" },
-  { key: "invoices", label: "Invoices" },
-  { key: "inventory", label: "Inventory (Products)" },
-  { key: "customers", label: "Customers" },
+  { key: "no_of_users", label: "Users (Staff Accounts)" },
+  { key: "no_of_attendants", label: "Attendants" },
+  { key: "no_of_business", label: "Businesses / Outlets" },
+  { key: "sales_count", label: "Sales / Month" },
+  { key: "invoice_count", label: "Invoices" },
+  { key: "inventory_count", label: "Inventory (Products)" },
+  { key: "customers_count", label: "Customers" },
+  { key: "no_of_campaign_groups", label: "Campaign Groups" },
+  { key: "free_campaign_unit", label: "Free Campaign Units" },
 ];
 
 export const PLAN_FEATURE_FIELDS = [
-  { key: "bulkEmail", label: "Bulk Email" },
-  { key: "bulkSms", label: "Bulk SMS" },
-  { key: "inStoreCheckout", label: "In-store Checkout" },
-  { key: "storefront", label: "Storefront" },
-  { key: "trackIncome", label: "Track Income" },
-  { key: "bankExpense", label: "Bank Expense Tracking" },
+  { key: "bulk_email", label: "Bulk Email" },
+  { key: "bulk_sms", label: "Bulk SMS" },
+  { key: "in_store_checkout", label: "In-store Checkout" },
+  { key: "store_front", label: "Storefront" },
+  { key: "track_income", label: "Track Income" },
+  { key: "bank_expenses_traking", label: "Bank Expense Tracking" },
   { key: "production", label: "Production" },
+];
+
+export const PLAN_PRICE_FIELDS = [
+  { key: "monthly", label: "Monthly" },
+  { key: "quarterly", label: "Quarterly" },
+  { key: "biannually", label: "Bi-Annual" },
+  { key: "annually", label: "Annual" },
 ];
 
 export const SAMPLE_USERS = [
@@ -369,7 +379,13 @@ export const SAMPLE_USERS = [
 
 export const findUser = (id) => SAMPLE_USERS.find((u) => u.id === id);
 
-export const findPlan = (id) => SUBSCRIPTION_PLANS.find((p) => p.id === id);
+export const findPlan = (key) => {
+  if (!key) return null;
+  const k = key.toString().toLowerCase();
+  return SUBSCRIPTION_PLANS.find(
+    (p) => p.id === k || p.name?.toLowerCase() === k
+  );
+};
 
 export const formatLimit = (n) =>
   n === null || n === undefined ? "∞" : n.toLocaleString();

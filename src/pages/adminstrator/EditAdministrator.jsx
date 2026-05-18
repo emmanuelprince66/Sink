@@ -74,9 +74,10 @@ const EditAdministrator = ({
   const adminEditInviteMutation = useMutation({
     mutationFn: async (payload) => {
       try {
+        // PATCH /profile/staff/{id}/ — body: { status: "active"|"inactive", role?: "accountant"|"manager"|"moderator"|"support" }
         const response = await AuthAxios({
-          url: `/admin/update_team/${id}`,
-          method: "POST",
+          url: `/profile/staff/${id}/`,
+          method: "PATCH",
           data: payload,
           headers: {
             Authorization: `Bearer ${token}`,
@@ -95,7 +96,6 @@ const EditAdministrator = ({
         notiError("Error!");
         throw new Error(error.response.data.message);
       }
-      a;
     },
     onSuccess: (data) => {
       setButtonLoading(false);
@@ -138,12 +138,32 @@ const EditAdministrator = ({
   };
 
   useEffect(() => {
-    setFirstName(teamMemberModalData?.firstname || "");
-    setLastName(teamMemberModalData?.lastname || "");
+    if (!teamMemberModalData) return;
+    // Name may come as firstname/lastname or single full_name
+    const fn =
+      teamMemberModalData?.firstname ||
+      (teamMemberModalData?.full_name || "").split(" ")[0] ||
+      "";
+    const ln =
+      teamMemberModalData?.lastname ||
+      (teamMemberModalData?.full_name || "").split(" ").slice(1).join(" ") ||
+      "";
+    setFirstName(fn);
+    setLastName(ln);
     setEmail(teamMemberModalData?.email || "");
     setId(teamMemberModalData?.id || "");
-    setStatus(teamMemberModalData?.is_active ? "active" : "inactive");
-    setRole(teamMemberModalData?.role || "");
+    // Status: prefer explicit "active"/"inactive" string; fall back to is_active boolean
+    const apiStatus =
+      typeof teamMemberModalData?.status === "string"
+        ? teamMemberModalData.status.toLowerCase()
+        : teamMemberModalData?.is_active === false
+        ? "inactive"
+        : "active";
+    setStatus(apiStatus === "inactive" ? "inactive" : "active");
+    // Role: only set if it matches one of the allowed API enum values
+    const r = (teamMemberModalData?.role || "").toLowerCase();
+    const allowed = ["manager", "accountant", "moderator", "support"];
+    setRole(allowed.includes(r) ? r : "");
   }, [teamMemberModalData]);
 
   return (
@@ -298,14 +318,12 @@ const EditAdministrator = ({
                     displayEmpty
                   >
                     <MenuItem value="" disabled>
-                      <Box> Select Administrator Role</Box>
+                      <Box>Select Administrator Role</Box>
                     </MenuItem>
-                    <MenuItem value="Administrator">Administrator</MenuItem>
-                    <MenuItem value="Accountant">Accountant</MenuItem>
-                    <MenuItem value="Customer-support">
-                      Customer Support
-                    </MenuItem>{" "}
-                    <MenuItem value="Loan-manager">Loan Manager</MenuItem>{" "}
+                    <MenuItem value="manager">Manager</MenuItem>
+                    <MenuItem value="accountant">Accountant</MenuItem>
+                    <MenuItem value="moderator">Moderator</MenuItem>
+                    <MenuItem value="support">Support</MenuItem>
                   </Select>
                 </FormControl>
               </div>
@@ -337,7 +355,7 @@ const EditAdministrator = ({
                       <Box> Select Status</Box>
                     </MenuItem>
                     <MenuItem value="active">Active</MenuItem>
-                    <MenuItem value="inactive">Inactve</MenuItem>
+                    <MenuItem value="inactive">Inactive</MenuItem>
                   </Select>
                 </FormControl>
               </div>

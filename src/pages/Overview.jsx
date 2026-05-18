@@ -1,5 +1,6 @@
 import { Skeleton } from "@mui/material";
 import { overveiwUrl } from "../api/endpoint";
+import UserActivityMonitor from "./overview/UserActivityMonitor";
 import oOne from "../assets/overview/o-1.svg";
 import oTwo from "../assets/overview/o-2.svg";
 import oThree from "../assets/overview/o-3.svg";
@@ -208,6 +209,11 @@ const Overview = () => {
             </div>
           </CustomCard>
         )}
+      </div>
+
+      {/* User Activity Monitoring */}
+      <div className="w-full mt-7">
+        <UserActivityMonitor />
       </div>
 
       {/* corporative data analytics */}

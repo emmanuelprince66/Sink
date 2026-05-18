@@ -6,9 +6,9 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Divider,
   Grid,
-  LinearProgress,
   MenuItem,
   Select,
   Tab,
@@ -24,31 +24,18 @@ import {
   TrendingDownOutlined as OutflowIcon,
   ReceiptLongOutlined as TrxIcon,
   PaidOutlined as CommissionIcon,
+  AccountBalanceWalletOutlined as WalletIcon,
   AccessTimeOutlined as TimeIcon,
   OpenInNewRounded as OpenIcon,
-  CheckRounded as CheckIcon,
-  CloseRounded as XIcon,
-  AllInclusiveRounded as InfinityIcon,
 } from "@mui/icons-material";
 import FormattedPrice from "../../utils/FormattedPrice";
-import {
-  findUser,
-  findPlan,
-  PLAN_LIMIT_FIELDS,
-  PLAN_FEATURE_FIELDS,
-  formatLimit,
-} from "./userData";
+import { membersProfileUrl } from "../../api/endpoint";
+import useFetchData from "../../hooks/useFetchData";
 
 const STATUS_STYLE = {
   active: { bg: "#E6F7EA", color: "#02981D", label: "Active" },
   suspended: { bg: "#FDECEC", color: "#DC3545", label: "Suspended" },
   pending: { bg: "#FFF7E8", color: "#B26A00", label: "Pending" },
-};
-
-const PLAN_STATUS = {
-  active: { bg: "#E6F7EA", color: "#02981D", label: "Active" },
-  trial: { bg: "#FFF7E8", color: "#B26A00", label: "Trial" },
-  expired: { bg: "#FDECEC", color: "#DC3545", label: "Expired" },
 };
 
 const KYC_STATUS = {
@@ -111,140 +98,98 @@ const StatTile = ({ icon, color, bg, label, value, sub }) => (
   </Card>
 );
 
-const UsageBar = ({ label, used, limit }) => {
-  const isUnlimited = limit === null || limit === undefined;
-  const pct = isUnlimited
-    ? 0
-    : Math.min(100, Math.round((used / Math.max(limit, 1)) * 100));
-  const danger = pct >= 90;
-  return (
-    <div className="border border-[#EFEFEF] rounded-lg p-3">
-      <div className="flex items-center justify-between mb-1.5">
-        <p className="text-[12px] text-primary_grey_2 font-medium">{label}</p>
-        <p className="text-[13px] font-semibold text-general flex items-center gap-1">
-          {used.toLocaleString()}{" "}
-          <span className="text-primary_grey_2 font-normal">/</span>{" "}
-          {isUnlimited ? (
-            <InfinityIcon sx={{ fontSize: 14, color: "#02981D" }} />
-          ) : (
-            limit.toLocaleString()
-          )}
-        </p>
-      </div>
-      {!isUnlimited && (
-        <LinearProgress
-          variant="determinate"
-          value={pct}
-          sx={{
-            height: 6,
-            borderRadius: 3,
-            backgroundColor: "#F5F5F5",
-            "& .MuiLinearProgress-bar": {
-              backgroundColor: danger ? "#DC3545" : "#02981D",
-            },
-          }}
-        />
-      )}
-    </div>
-  );
-};
-
-const FeaturePill = ({ label, on }) => (
-  <span
-    className="inline-flex items-center gap-1 text-[12px] px-2 py-1 rounded-md"
-    style={{
-      background: on ? "#E6F7EA" : "#F5F5F5",
-      color: on ? "#02981D" : "#9CA3AF",
-      fontWeight: on ? 600 : 500,
-    }}
-  >
-    {on ? (
-      <CheckIcon sx={{ fontSize: 12 }} />
-    ) : (
-      <XIcon sx={{ fontSize: 12 }} />
-    )}
-    {label}
-  </span>
-);
-
-const PAYMENT_TRX = [
-  {
-    id: "TRX-9821",
-    type: "Wallet Credit",
-    amount: 25000,
-    date: "2026-04-21 14:22",
-    status: "Successful",
-    method: "Card",
-    outlet: "out-1",
-  },
-  {
-    id: "TRX-9820",
-    type: "Subscription",
-    amount: 25000,
-    date: "2026-04-12 09:00",
-    status: "Successful",
-    method: "Card",
-    outlet: "out-1",
-  },
-  {
-    id: "TRX-9787",
-    type: "Withdrawal",
-    amount: 12000,
-    date: "2026-04-10 16:42",
-    status: "Successful",
-    method: "Bank Transfer",
-    outlet: "out-2",
-  },
-  {
-    id: "TRX-9712",
-    type: "Data Purchase",
-    amount: 1500,
-    date: "2026-04-08 11:11",
-    status: "Failed",
-    method: "Card",
-    outlet: "out-1",
-  },
-];
-
-const LOGISTIC_TRX = [
-  {
-    id: "ORD-10298",
-    receiver: "Adaeze Okoro",
-    status: "in_transit",
-    amount: 4500,
-    date: "2026-04-22",
-    outlet: "out-1",
-  },
-  {
-    id: "ORD-10301",
-    receiver: "Ifeanyi Johnson",
-    status: "failed",
-    amount: 5500,
-    date: "2026-04-21",
-    outlet: "out-2",
-  },
-  {
-    id: "ORD-10300",
-    receiver: "Chinedu Eze",
-    status: "delivered",
-    amount: 6800,
-    date: "2026-04-21",
-    outlet: "out-1",
-  },
-];
-
 const DELIVERY_STATUS = {
   in_transit: { bg: "#E0F2FE", color: "#0369A1", label: "In Transit" },
   delivered: { bg: "#E6F7EA", color: "#02981D", label: "Delivered" },
   failed: { bg: "#FDECEC", color: "#DC3545", label: "Failed" },
 };
 
+// Map API user-detail payload (SingleUserResponse) — only fields the API
+// actually returns. No invented data.
+const mapApiUserDetail = (d) => {
+  if (!d) return null;
+  const fullName =
+    [d?.firstname, d?.lastname].filter(Boolean).join(" ") ||
+    d?.business?.[0]?.name ||
+    "—";
+
+  const outlets = (d?.business || []).map((b, i) => ({
+    id: b?.id || `out-${i + 1}`,
+    name: b?.name || `Outlet ${i + 1}`,
+    location:
+      [b?.street, b?.city, b?.state].filter(Boolean).join(", ") || "—",
+    isActive: b?.is_active,
+    logo: b?.logo || null,
+  }));
+
+  return {
+    id: d?.id || "—",
+    firstname: d?.firstname || "",
+    lastname: d?.lastname || "",
+    name: fullName,
+    businessName: d?.business?.[0]?.name || null,
+    type: outlets.length > 0 ? "Business" : "Individual",
+    email: d?.email || "—",
+    phone: d?.phone || "—",
+    address:
+      [d?.state, d?.country].filter(Boolean).join(", ") ||
+      d?.business?.[0]?.street ||
+      "—",
+    country: d?.country || null,
+    state: d?.state || null,
+    plan: d?.subscription || "", // raw plan name from API
+    startDate: d?.subscription_start_date || null,
+    endDate: d?.subscription_end_date || null,
+    status: d?.is_active === false ? "inactive" : "active",
+    tier: d?.kyc_level || "—",
+    joined: d?.created_at ? d.created_at.slice(0, 10) : "—",
+    lastSeen: d?.last_seen || null,
+    activeFor: d?.active_for || "N/A",
+    inflow: Number(d?.total_inflow || 0),
+    outflow: Number(d?.total_outflow || 0),
+    transactions: Number(d?.total_transactions_count || 0),
+    commission: Number(d?.commission_earned || 0),
+    walletBalance: Number(d?.wallet_balance || 0),
+    accountNumber: d?.account_number || null,
+    profilePicture: d?.profile_picture || null,
+    // Business metrics straight from the API
+    totalProducts: Number(d?.total_products || 0),
+    totalSales: Number(d?.total_sales || 0),
+    totalExpenses: Number(d?.total_expenses || 0),
+    totalInventory: Number(d?.total_inventory || 0),
+    // Campaign fields the API returns
+    campaignUnitsLeft: Number(d?.campaign_units_left || 0),
+    campaignTotalAmount: Number(d?.campaign_total_amount || 0),
+    campaignsCount: Number(d?.campaigns_count || 0),
+    outlets,
+    paymentTransactions:
+      d?.recent_transactions?.payment_transactions || [],
+    logisticTransactions:
+      d?.recent_transactions?.logistic_transactions || [],
+    raw: d,
+  };
+};
+
 const UserProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const user = useMemo(() => findUser(id), [id]);
   const [tab, setTab] = useState(0);
   const [outlet, setOutlet] = useState("all");
+
+  const apiUrl = membersProfileUrl(id);
+  const { data, isLoading } = useFetchData(
+    ["fetchUserDetail", apiUrl],
+    apiUrl
+  );
+  const user = useMemo(() => mapApiUserDetail(data), [data]);
+
+  if (isLoading) {
+    return (
+      <div className="w-full flex items-center justify-center min-h-[60vh]">
+        <CircularProgress sx={{ color: "#02981D" }} />
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -267,7 +212,6 @@ const UserProfile = () => {
     );
   }
 
-  const plan = findPlan(user.plan);
   const initials = user.name
     .split(" ")
     .map((p) => p[0])
@@ -275,12 +219,18 @@ const UserProfile = () => {
     .slice(0, 2)
     .toUpperCase();
 
-  const filteredPayments = PAYMENT_TRX.filter((t) =>
-    outlet === "all" ? true : t.outlet === outlet
-  );
-  const filteredLogistics = LOGISTIC_TRX.filter((t) =>
-    outlet === "all" ? true : t.outlet === outlet
-  );
+  // Live payment_transactions from API
+  const filteredPayments = (user.paymentTransactions || []).map((t) => ({
+    id: t?.id || "—",
+    type: t?.type || "—",
+    amount: Number(t?.amount || 0),
+    date: t?.created_at || "—",
+    status: t?.status || "—",
+    method: t?.bank_name || t?.account_name || "—",
+    description: t?.description,
+  }));
+  // logistic_transactions is array of object with no schema yet — pass through
+  const filteredLogistics = user.logisticTransactions || [];
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -294,9 +244,17 @@ const UserProfile = () => {
             <BackIcon sx={{ color: "#5E5E5E", fontSize: 20 }} />
           </button>
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-[#F6FFF8] text-[#02981D] flex items-center justify-center font-semibold text-[16px] flex-none">
-              {initials}
-            </div>
+            {user.profilePicture ? (
+              <img
+                src={user.profilePicture}
+                alt={user.name}
+                className="h-12 w-12 rounded-full object-cover border border-[#EFEFEF] flex-none"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-full bg-[#F6FFF8] text-[#02981D] flex items-center justify-center font-semibold text-[16px] flex-none">
+                {initials}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-[20px] md:text-[22px] font-semibold text-general">
@@ -308,14 +266,6 @@ const UserProfile = () => {
                 {user.id} · {user.type} · Joined {user.joined}
               </p>
               <div className="flex items-center gap-2 flex-wrap mt-2">
-                <FeaturePill
-                  label="Logistics Automation"
-                  on={user.logisticsAutomation}
-                />
-                <FeaturePill
-                  label="Buy Now Pay Later"
-                  on={user.bnplEnabled}
-                />
                 <Chip
                   size="small"
                   label={user.tier}
@@ -325,6 +275,17 @@ const UserProfile = () => {
                     fontWeight: 600,
                   }}
                 />
+                {user.plan && (
+                  <Chip
+                    size="small"
+                    label={user.plan}
+                    sx={{
+                      background: "#EEF2FF",
+                      color: "#3949AB",
+                      fontWeight: 600,
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -397,7 +358,17 @@ const UserProfile = () => {
 
       {/* Financial overview tiles */}
       <Grid container spacing={2}>
-        <Grid item xs={6} md={2.4}>
+        <Grid item xs={6} md={2}>
+          <StatTile
+            icon={<WalletIcon fontSize="small" />}
+            color="#7C3AED"
+            bg="#F3E8FF"
+            label="Wallet Balance"
+            value={<FormattedPrice amount={user.walletBalance} />}
+            sub={user.accountNumber ? `Acct: ${user.accountNumber}` : "—"}
+          />
+        </Grid>
+        <Grid item xs={6} md={2}>
           <StatTile
             icon={<InflowIcon fontSize="small" />}
             color="#02981D"
@@ -407,7 +378,7 @@ const UserProfile = () => {
             sub="Money received"
           />
         </Grid>
-        <Grid item xs={6} md={2.4}>
+        <Grid item xs={6} md={2}>
           <StatTile
             icon={<OutflowIcon fontSize="small" />}
             color="#DC3545"
@@ -417,7 +388,7 @@ const UserProfile = () => {
             sub="Money sent"
           />
         </Grid>
-        <Grid item xs={6} md={2.4}>
+        <Grid item xs={6} md={2}>
           <StatTile
             icon={<TrxIcon fontSize="small" />}
             color="#3949AB"
@@ -427,17 +398,17 @@ const UserProfile = () => {
             sub="All time"
           />
         </Grid>
-        <Grid item xs={6} md={2.4}>
+        <Grid item xs={6} md={2}>
           <StatTile
             icon={<CommissionIcon fontSize="small" />}
             color="#B26A00"
             bg="#FFF7E8"
             label="Commission"
             value={<FormattedPrice amount={user.commission} />}
-            sub="Generated for platform"
+            sub="Earned by platform"
           />
         </Grid>
-        <Grid item xs={12} md={2.4}>
+        <Grid item xs={12} md={2}>
           <StatTile
             icon={<TimeIcon fontSize="small" />}
             color="#0369A1"
@@ -476,7 +447,6 @@ const UserProfile = () => {
             >
               <Tab label="Overview" />
               <Tab label="Subscription" />
-              <Tab label="Usage & Limits" />
               <Tab label="Payment Transactions" />
               <Tab label="Logistic Transactions" />
             </Tabs>
@@ -509,6 +479,15 @@ const UserProfile = () => {
                     </>
                   )}
                   <InfoRow label="Account Type" value={user.type} />
+                  {user.accountNumber && (
+                    <>
+                      <Divider />
+                      <InfoRow
+                        label="Account Number"
+                        value={user.accountNumber}
+                      />
+                    </>
+                  )}
                 </div>
               </Grid>
 
@@ -555,26 +534,6 @@ const UserProfile = () => {
                     }
                   />
                   <Divider />
-                  <InfoRow
-                    label="Logistics Automation"
-                    value={
-                      <FeaturePill
-                        label={user.logisticsAutomation ? "Enabled" : "Off"}
-                        on={user.logisticsAutomation}
-                      />
-                    }
-                  />
-                  <Divider />
-                  <InfoRow
-                    label="Buy Now Pay Later"
-                    value={
-                      <FeaturePill
-                        label={user.bnplEnabled ? "Enabled" : "Off"}
-                        on={user.bnplEnabled}
-                      />
-                    }
-                  />
-                  <Divider />
                   <InfoRow label="Date Joined" value={user.joined} />
                   <Divider />
                   <InfoRow label="Active For" value={user.activeFor} />
@@ -588,56 +547,12 @@ const UserProfile = () => {
             <Grid container spacing={3}>
               <Grid item xs={12} md={5}>
                 <div className="rounded-xl border border-[#EFEFEF] p-5 h-full">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[12px] uppercase tracking-wide text-primary_grey_2">
-                      Current Plan
-                    </p>
-                    <Pill map={PLAN_STATUS} value={user.planStatus} />
-                  </div>
-                  <p
-                    className="text-[24px] font-semibold mt-2"
-                    style={{ color: plan?.color || "#111827" }}
-                  >
-                    {plan?.name || "—"}
+                  <p className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                    Current Plan
                   </p>
-                  <p className="text-[14px] text-general mt-1">
-                    {plan ? (
-                      <>
-                        <FormattedPrice amount={plan.price} /> · {plan.cycle}
-                      </>
-                    ) : (
-                      "No plan attached"
-                    )}
+                  <p className="text-[24px] font-semibold mt-2 text-general">
+                    {user.plan || "No plan"}
                   </p>
-                  <p className="text-[12px] text-primary_grey_2 mt-2 leading-relaxed">
-                    {plan?.description}
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button
-                      size="small"
-                      sx={{
-                        textTransform: "none",
-                        color: "#5E5E5E",
-                        border: "1px solid #E3E3E3",
-                        background: "#fff",
-                        "&:hover": { background: "#F5F5F5" },
-                      }}
-                    >
-                      Change Plan
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      sx={{
-                        textTransform: "none",
-                        background: "#02981D",
-                        boxShadow: "none",
-                        "&:hover": { background: "#017a17" },
-                      }}
-                    >
-                      Renew
-                    </Button>
-                  </div>
                 </div>
               </Grid>
 
@@ -647,106 +562,24 @@ const UserProfile = () => {
                     Billing Details
                   </p>
                   <Divider />
-                  <InfoRow label="Start Date" value={user.startDate} />
-                  <Divider />
-                  <InfoRow label="End Date" value={user.endDate} />
-                  <Divider />
-                  <InfoRow label="Next Billing" value={user.nextBilling} />
-                  <Divider />
                   <InfoRow
-                    label="Plan Status"
-                    value={<Pill map={PLAN_STATUS} value={user.planStatus} />}
+                    label="Start Date"
+                    value={
+                      user.startDate ? user.startDate.slice(0, 10) : "—"
+                    }
                   />
                   <Divider />
                   <InfoRow
-                    label="Cycle Cost"
-                    value={<FormattedPrice amount={plan?.price || 0} />}
+                    label="End Date"
+                    value={user.endDate ? user.endDate.slice(0, 10) : "—"}
                   />
-                </div>
-              </Grid>
-            </Grid>
-          )}
-
-          {/* Usage & Limits tab */}
-          {tab === 2 && plan && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
-                  Usage vs. Plan Limits
-                </p>
-                <div className="flex flex-col gap-2">
-                  <UsageBar
-                    label="Attendants"
-                    used={user.usage.attendants}
-                    limit={plan.limits.attendants}
-                  />
-                  <UsageBar
-                    label="Inventory (Products)"
-                    used={user.usage.inventory}
-                    limit={plan.limits.inventory}
-                  />
-                  <UsageBar
-                    label="Customers Added"
-                    used={user.usage.customers}
-                    limit={plan.limits.customers}
-                  />
-                  <UsageBar
-                    label="Outlets"
-                    used={user.outlets?.length || 0}
-                    limit={plan.limits.outlets}
-                  />
-                </div>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
-                  Plan Features
-                </p>
-                <div className="border border-[#EFEFEF] rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-y-2">
-                  {PLAN_FEATURE_FIELDS.map((f) => (
-                    <FeaturePill
-                      key={f.key}
-                      label={f.label}
-                      on={!!plan.features[f.key]}
-                    />
-                  ))}
-                </div>
-
-                <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mt-4 mb-2">
-                  Outlets
-                </p>
-                <div className="border border-[#EFEFEF] rounded-xl divide-y divide-[#F5F5F5]">
-                  {user.outlets?.map((o) => (
-                    <div
-                      key={o.id}
-                      className="flex items-center justify-between p-3"
-                    >
-                      <div>
-                        <p className="text-[13px] text-general font-medium">
-                          {o.name}
-                        </p>
-                        <p className="text-[12px] text-primary_grey_2">
-                          {o.location}
-                        </p>
-                      </div>
-                      <Chip
-                        size="small"
-                        label="Active"
-                        sx={{
-                          background: "#E6F7EA",
-                          color: "#02981D",
-                          fontWeight: 600,
-                        }}
-                      />
-                    </div>
-                  ))}
                 </div>
               </Grid>
             </Grid>
           )}
 
           {/* Payment Transactions tab */}
-          {tab === 3 && (
+          {tab === 2 && (
             <div className="w-full overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -792,15 +625,19 @@ const UserProfile = () => {
                         </td>
                         <td className="py-4 px-3">
                           <span
-                            className="text-[12px] font-medium px-3 py-1 rounded-full"
+                            className="text-[12px] font-medium px-3 py-1 rounded-full capitalize"
                             style={{
                               background:
-                                t.status === "Successful"
+                                /success/i.test(t.status)
                                   ? "#E6F7EA"
+                                  : /pending/i.test(t.status)
+                                  ? "#FFF7E8"
                                   : "#FDECEC",
                               color:
-                                t.status === "Successful"
+                                /success/i.test(t.status)
                                   ? "#02981D"
+                                  : /pending/i.test(t.status)
+                                  ? "#B26A00"
                                   : "#DC3545",
                             }}
                           >
@@ -829,11 +666,11 @@ const UserProfile = () => {
           )}
 
           {/* Logistic Transactions tab */}
-          {tab === 4 && (
+          {tab === 3 && (
             <>
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[14px] font-semibold text-general">
-                  Logistic / Online Transactions ({user.deliveries})
+                  Logistic / Online Transactions ({filteredLogistics.length})
                 </p>
                 <Button
                   onClick={() => navigate("/logistics")}
@@ -865,29 +702,32 @@ const UserProfile = () => {
                           colSpan={5}
                           className="py-10 text-center text-primary_grey_2"
                         >
-                          No deliveries for this outlet selection.
+                          No logistic transactions yet.
                         </td>
                       </tr>
                     ) : (
-                      filteredLogistics.map((d) => (
+                      filteredLogistics.map((d, i) => (
                         <tr
-                          key={d.id}
+                          key={d?.id || i}
                           className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
                         >
                           <td className="py-4 px-3 text-[13px] font-medium text-general">
-                            {d.id}
+                            {d?.id || "—"}
                           </td>
                           <td className="py-4 px-3 text-[13px] text-general">
-                            {d.receiver}
+                            {d?.receiver || d?.recipient || "—"}
                           </td>
                           <td className="py-4 px-3 text-[13px] text-general">
-                            <FormattedPrice amount={d.amount} />
+                            <FormattedPrice amount={Number(d?.amount || 0)} />
                           </td>
                           <td className="py-4 px-3 text-[12px] text-primary_grey_2">
-                            {d.date}
+                            {d?.date || d?.created_at || "—"}
                           </td>
                           <td className="py-4 px-3">
-                            <Pill map={DELIVERY_STATUS} value={d.status} />
+                            <Pill
+                              map={DELIVERY_STATUS}
+                              value={d?.status || "—"}
+                            />
                           </td>
                         </tr>
                       ))

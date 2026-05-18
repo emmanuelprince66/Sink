@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ToastContainer, toast } from "react-toastify";
 import {
   Box,
   Button,
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Divider,
   FormControl,
   Grid,
@@ -30,29 +33,26 @@ import {
   ChevronRightRounded as ChevronRightIcon,
   CheckCircleRounded as CheckIcon,
   CancelRounded as XIcon,
-  AllInclusiveRounded as InfinityIcon,
   TrendingUpOutlined as MrrIcon,
   ReportProblemOutlined as FailedIcon,
 } from "@mui/icons-material";
 import CustomModal from "../../components/CustomModal";
 import FormattedPrice from "../../utils/FormattedPrice";
 import {
-  SUBSCRIPTION_PLANS,
-  SAMPLE_USERS,
-  findPlan,
   PLAN_LIMIT_FIELDS,
   PLAN_FEATURE_FIELDS,
-  formatLimit,
+  PLAN_PRICE_FIELDS,
 } from "../users/userData";
-
-const BILLING_CYCLES = [
-  "Monthly",
-  "Quarterly",
-  "Bi-Annual",
-  "Annual",
-  "14-day Trial",
-  "Custom",
-];
+import {
+  plansUrl,
+  singlePlanUrl,
+  merchantSubscriptionsUrl,
+  transactionsSubscriptionDataUrl,
+} from "../../api/endpoint";
+import useFetchData from "../../hooks/useFetchData";
+import { AuthAxios } from "../../helpers/axiosInstance";
+import CustomPagination from "../../components/CustomPagination";
+import { useDateContext } from "../../utils/DateContext";
 
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   <Card
@@ -84,9 +84,19 @@ const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
 );
 
 const PlanCard = ({ plan, onEdit }) => {
-  const enabledFeatures = PLAN_FEATURE_FIELDS.filter(
-    (f) => plan.features?.[f.key]
-  );
+  const enabledFeatures = PLAN_FEATURE_FIELDS.filter((f) => plan?.[f.key]);
+  // Pick a display price: prefer monthly, fall back to first non-zero
+  const displayPrice =
+    plan?.monthly || plan?.quarterly || plan?.biannually || plan?.annually || 0;
+  const displayCycle = plan?.monthly
+    ? "/ month"
+    : plan?.quarterly
+    ? "/ quarter"
+    : plan?.biannually
+    ? "/ bi-annual"
+    : plan?.annually
+    ? "/ annual"
+    : "";
   return (
     <Card
       sx={{
@@ -96,22 +106,24 @@ const PlanCard = ({ plan, onEdit }) => {
         height: "100%",
         display: "flex",
         flexDirection: "column",
+        opacity: plan?.is_active === false ? 0.6 : 1,
       }}
     >
       <CardContent sx={{ p: 3, flex: 1, display: "flex", flexDirection: "column" }}>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
-            <div
-              className="h-9 w-9 rounded-md flex items-center justify-center"
-              style={{ background: plan.bg, color: plan.color }}
-            >
+            <div className="h-9 w-9 rounded-md flex items-center justify-center bg-[#F6FFF8] text-[#02981D]">
               <PlanIcon fontSize="small" />
             </div>
             <div>
               <p className="text-[16px] font-semibold text-general">
-                {plan.name}
+                {plan?.name || "—"}
               </p>
-              <p className="text-[12px] text-primary_grey_2">{plan.cycle}</p>
+              {plan?.is_active === false && (
+                <p className="text-[11px] text-[#DC3545] font-medium">
+                  Inactive
+                </p>
+              )}
             </div>
           </div>
           <button
@@ -123,15 +135,36 @@ const PlanCard = ({ plan, onEdit }) => {
         </div>
 
         <p className="text-[28px] font-bold text-general mt-3">
-          <FormattedPrice amount={plan.price} />
+          <FormattedPrice amount={displayPrice} />
+          <span className="text-[12px] text-primary_grey_2 font-normal ml-1">
+            {displayCycle}
+          </span>
         </p>
-        <p className="text-[12px] text-primary_grey_2 mt-1 leading-relaxed">
-          {plan.description}
-        </p>
+        {plan?.description && (
+          <p className="text-[12px] text-primary_grey_2 mt-1 leading-relaxed">
+            {plan.description}
+          </p>
+        )}
+
+        {/* All 4 prices */}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-3 text-[11px]">
+          {PLAN_PRICE_FIELDS.map((p) => (
+            <div key={p.key} className="flex justify-between">
+              <span className="text-primary_grey_2">{p.label}</span>
+              <span className="text-general font-medium">
+                {plan?.[p.key] ? (
+                  <FormattedPrice amount={plan[p.key]} />
+                ) : (
+                  "—"
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
 
         <Divider sx={{ my: 2 }} />
 
-        {/* Limits grid */}
+        {/* Limits */}
         <p className="text-[11px] uppercase tracking-wide text-primary_grey_2 mb-2">
           Usage Limits
         </p>
@@ -144,14 +177,8 @@ const PlanCard = ({ plan, onEdit }) => {
               <span className="text-primary_grey_2 truncate pr-2">
                 {f.label}
               </span>
-              <span className="text-general font-semibold flex items-center gap-1">
-                {plan.limits?.[f.key] === null ? (
-                  <InfinityIcon
-                    sx={{ fontSize: 14, color: plan.color }}
-                  />
-                ) : (
-                  formatLimit(plan.limits?.[f.key] ?? 0)
-                )}
+              <span className="text-general font-semibold">
+                {Number(plan?.[f.key] || 0).toLocaleString()}
               </span>
             </div>
           ))}
@@ -164,14 +191,14 @@ const PlanCard = ({ plan, onEdit }) => {
         </p>
         <div className="flex flex-wrap gap-1.5">
           {PLAN_FEATURE_FIELDS.map((f) => {
-            const on = plan.features?.[f.key];
+            const on = !!plan?.[f.key];
             return (
               <span
                 key={f.key}
                 className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-md"
                 style={{
-                  background: on ? plan.bg : "#F5F5F5",
-                  color: on ? plan.color : "#9CA3AF",
+                  background: on ? "#E6F7EA" : "#F5F5F5",
+                  color: on ? "#02981D" : "#9CA3AF",
                   fontWeight: on ? 600 : 500,
                 }}
               >
@@ -185,136 +212,11 @@ const PlanCard = ({ plan, onEdit }) => {
             );
           })}
         </div>
-
-        <Divider sx={{ my: 2 }} />
-        <div className="mt-auto flex items-center justify-between">
-          <div>
-            <p className="text-[11px] text-primary_grey_2">
-              Active subscribers
-            </p>
-            <p className="text-[14px] font-semibold text-general">
-              {plan.activeSubscribers.toLocaleString()}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-[11px] text-primary_grey_2">Revenue MTD</p>
-            <p className="text-[14px] font-semibold text-general">
-              <FormattedPrice amount={plan.revenueMTD} />
-            </p>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
 };
 
-// Sample subscription transactions with full lifecycle metadata
-const SUB_TRANSACTIONS = [
-  {
-    id: "ST-2241",
-    user: "Adaeze Beauty Hub",
-    plan: "syncpro",
-    type: "Renewal",
-    amount: 25000,
-    cycle: "Monthly",
-    start: "2026-04-12",
-    end: "2026-05-12",
-    nextBilling: "2026-05-12",
-    method: "Card",
-    status: "Successful",
-  },
-  {
-    id: "ST-2240",
-    user: "Sunde Logistics Ltd",
-    plan: "syncpro",
-    type: "Renewal",
-    amount: 25000,
-    cycle: "Monthly",
-    start: "2026-04-04",
-    end: "2026-05-04",
-    nextBilling: "2026-05-04",
-    method: "Bank Transfer",
-    status: "Successful",
-  },
-  {
-    id: "ST-2239",
-    user: "Ifeanyi Johnson",
-    plan: "syncplus",
-    type: "Upgrade",
-    amount: 9500,
-    cycle: "Monthly",
-    start: "2026-04-10",
-    end: "2026-05-10",
-    nextBilling: "2026-05-10",
-    method: "Card",
-    status: "Successful",
-  },
-  {
-    id: "ST-2238",
-    user: "Bola Salami",
-    plan: "trial",
-    type: "New",
-    amount: 0,
-    cycle: "14-day Trial",
-    start: "2026-04-10",
-    end: "2026-04-24",
-    nextBilling: "2026-04-24",
-    method: "—",
-    status: "Successful",
-  },
-  {
-    id: "ST-2237",
-    user: "Chinedu Eze",
-    plan: "syncplus",
-    type: "Renewal",
-    amount: 9500,
-    cycle: "Monthly",
-    start: "2026-04-01",
-    end: "2026-05-01",
-    nextBilling: "—",
-    method: "Card",
-    status: "Failed",
-  },
-  {
-    id: "ST-2236",
-    user: "Kano Foods Co.",
-    plan: "syncpro",
-    type: "Renewal",
-    amount: 25000,
-    cycle: "Monthly",
-    start: "2026-04-01",
-    end: "2026-05-01",
-    nextBilling: "2026-05-01",
-    method: "Bank Transfer",
-    status: "Successful",
-  },
-  {
-    id: "ST-2235",
-    user: "Lagos Mart Ventures",
-    plan: "syncplus",
-    type: "Downgrade",
-    amount: 9500,
-    cycle: "Monthly",
-    start: "2026-04-09",
-    end: "2026-05-09",
-    nextBilling: "2026-05-09",
-    method: "Card",
-    status: "Successful",
-  },
-  {
-    id: "ST-2234",
-    user: "Adaeze Beauty Hub",
-    plan: "syncpro",
-    type: "New",
-    amount: 25000,
-    cycle: "Monthly",
-    start: "2025-09-12",
-    end: "2025-10-12",
-    nextBilling: "2025-10-12",
-    method: "Card",
-    status: "Successful",
-  },
-];
 
 const TYPE_BADGE = {
   New: { bg: "#E0F2FE", color: "#0369A1" },
@@ -323,30 +225,41 @@ const TYPE_BADGE = {
   Downgrade: { bg: "#FFF7E8", color: "#B26A00" },
 };
 
+// Empty plan matches API's PlanRequest shape exactly
 const emptyPlan = () => ({
-  id: "",
+  id: null,
   name: "",
-  cycle: "Monthly",
-  price: "",
   description: "",
-  color: "#02981D",
-  bg: "#E6F7EA",
-  limits: PLAN_LIMIT_FIELDS.reduce(
-    (acc, f) => ({ ...acc, [f.key]: 0 }),
-    {}
-  ),
-  unlimited: PLAN_LIMIT_FIELDS.reduce(
-    (acc, f) => ({ ...acc, [f.key]: false }),
-    {}
-  ),
-  features: PLAN_FEATURE_FIELDS.reduce(
-    (acc, f) => ({ ...acc, [f.key]: false }),
-    {}
-  ),
+  ...PLAN_PRICE_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: 0 }), {}),
+  ...PLAN_LIMIT_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: 0 }), {}),
+  ...PLAN_FEATURE_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: false }), {}),
+  is_active: true,
+});
+
+// Pass-through map — the API already uses snake_case field names we render
+const mapApiPlan = (p) => {
+  if (!p) return null;
+  return { ...emptyPlan(), ...p, id: p?.id };
+};
+
+const mapApiSubTrx = (t) => ({
+  id: t?.id || t?.reference || "—",
+  user: t?.user_name || t?.merchant_name || t?.user || "—",
+  plan: (t?.plan_name || t?.plan || "").toString(),
+  type: t?.transaction_type || t?.type || "Renewal",
+  amount: Number(t?.amount || 0),
+  cycle: t?.billing_cycle || t?.cycle || "Monthly",
+  start: t?.start_date || t?.created_at || "—",
+  end: t?.end_date || "—",
+  nextBilling: t?.next_billing_date || "—",
+  method: t?.payment_method || t?.method || "—",
+  status: t?.status || "Pending",
 });
 
 const SubscriptionManagement = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { selectedDates } = useDateContext();
   const [tab, setTab] = useState(0);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -356,31 +269,147 @@ const SubscriptionManagement = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [cycleFilter, setCycleFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [subsPage, setSubsPage] = useState(1);
+  const [subTrxPage, setSubTrxPage] = useState(1);
+  const [subsSearch, setSubsSearch] = useState("");
+  const [rowsPerPage] = useState(50);
+
+  // ─── API fetches ───
+  const plansApi = plansUrl();
+  const { data: plansData, isLoading: plansLoading } = useFetchData(
+    ["fetchPlans", plansApi],
+    plansApi
+  );
+
+  const subsApi = merchantSubscriptionsUrl(
+    subsPage,
+    rowsPerPage,
+    subsSearch,
+    selectedDates
+  );
+  const { data: subsData, isLoading: subsLoading } = useFetchData(
+    [
+      "fetchMerchantSubs",
+      subsApi,
+      subsPage,
+      subsSearch,
+      selectedDates?.startDate,
+      selectedDates?.endDate,
+    ],
+    subsApi
+  );
+
+  const subTrxApi = transactionsSubscriptionDataUrl(
+    subTrxPage,
+    rowsPerPage,
+    "",
+    typeFilter === "all" ? "" : typeFilter,
+    selectedDates
+  );
+  const { data: subTrxData, isLoading: subTrxLoading } = useFetchData(
+    [
+      "fetchSubTrx",
+      subTrxApi,
+      typeFilter,
+      subTrxPage,
+      selectedDates?.startDate,
+      selectedDates?.endDate,
+    ],
+    subTrxApi
+  );
+
+  const plans = useMemo(() => {
+    const raw = Array.isArray(plansData?.data)
+      ? plansData.data
+      : Array.isArray(plansData?.results)
+      ? plansData.results
+      : Array.isArray(plansData)
+      ? plansData
+      : [];
+    return raw.map(mapApiPlan).filter(Boolean);
+  }, [plansData]);
+
+  const subscribers = useMemo(() => {
+    return Array.isArray(subsData?.data)
+      ? subsData.data
+      : Array.isArray(subsData?.results)
+      ? subsData.results
+      : Array.isArray(subsData)
+      ? subsData
+      : [];
+  }, [subsData]);
+
+  const subTrx = useMemo(() => {
+    const raw = Array.isArray(subTrxData?.data)
+      ? subTrxData.data
+      : Array.isArray(subTrxData?.results)
+      ? subTrxData.results
+      : Array.isArray(subTrxData)
+      ? subTrxData
+      : [];
+    return raw.map(mapApiSubTrx);
+  }, [subTrxData]);
+
+  // ─── Mutations ───
+  const createPlan = useMutation({
+    mutationFn: (payload) => AuthAxios.post(plansUrl(), payload),
+    onSuccess: () => {
+      toast.success("Plan created");
+      queryClient.invalidateQueries({ queryKey: ["fetchPlans"] });
+      close();
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.message || "Failed to create plan"),
+  });
+
+  const updatePlan = useMutation({
+    mutationFn: ({ id, payload }) =>
+      AuthAxios.patch(singlePlanUrl(id), payload),
+    onSuccess: () => {
+      toast.success("Plan updated");
+      queryClient.invalidateQueries({ queryKey: ["fetchPlans"] });
+      close();
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.message || "Failed to update plan"),
+  });
+
+  const deletePlan = useMutation({
+    mutationFn: (id) => AuthAxios.delete(singlePlanUrl(id)),
+    onSuccess: () => {
+      toast.success("Plan deleted");
+      queryClient.invalidateQueries({ queryKey: ["fetchPlans"] });
+      close();
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.message || "Failed to delete plan"),
+  });
 
   const totals = useMemo(() => {
-    const subRevenue = SUBSCRIPTION_PLANS.reduce(
-      (a, p) => a + p.revenueMTD,
-      0
+    // Derive what we can from the on-page data. API doesn't expose
+    // per-plan subscriber counts or revenue, so these come from subscribers /
+    // subscription-transactions where available.
+    const subRevenue = subTrx
+      .filter((t) => t.status === "Successful")
+      .reduce((a, t) => a + (t.amount || 0), 0);
+    const failedTrx = subTrx.filter(
+      (t) => t.type === "Renewal" && t.status === "Failed"
     );
     return {
-      plans: SUBSCRIPTION_PLANS.length,
-      subscribers: SUBSCRIPTION_PLANS.reduce(
-        (a, p) => a + p.activeSubscribers,
-        0
-      ),
+      plans: plans.length,
+      subscribers:
+        subsData?.total ||
+        subsData?.count ||
+        (Array.isArray(subscribers) ? subscribers.length : 0),
       revenueMTD: subRevenue,
       mrr: subRevenue,
-      failedRenewals: SUB_TRANSACTIONS.filter(
-        (t) => t.type === "Renewal" && t.status === "Failed"
-      ).reduce((a, t) => a + t.amount, 0),
-      failedCount: SUB_TRANSACTIONS.filter(
-        (t) => t.type === "Renewal" && t.status === "Failed"
-      ).length,
+      failedRenewals: failedTrx.reduce((a, t) => a + (t.amount || 0), 0),
+      failedCount: failedTrx.length,
     };
-  }, []);
+  }, [plans, subTrx, subsData, subscribers]);
 
   const filteredSubTrx = useMemo(() => {
-    return SUB_TRANSACTIONS.filter((t) => {
+    return subTrx.filter((t) => {
       const matchStatus =
         statusFilter === "all" ? true : t.status === statusFilter;
       const matchCycle =
@@ -388,7 +417,7 @@ const SubscriptionManagement = () => {
       const matchType = typeFilter === "all" ? true : t.type === typeFilter;
       return matchStatus && matchCycle && matchType;
     });
-  }, [statusFilter, cycleFilter, typeFilter]);
+  }, [subTrx, statusFilter, cycleFilter, typeFilter]);
 
   const openCreate = () => {
     setEditing(null);
@@ -398,16 +427,7 @@ const SubscriptionManagement = () => {
 
   const openEdit = (plan) => {
     setEditing(plan);
-    setForm({
-      ...emptyPlan(),
-      ...plan,
-      limits: { ...plan.limits },
-      unlimited: PLAN_LIMIT_FIELDS.reduce(
-        (acc, f) => ({ ...acc, [f.key]: plan.limits[f.key] === null }),
-        {}
-      ),
-      features: { ...plan.features },
-    });
+    setForm({ ...emptyPlan(), ...plan });
     setOpen(true);
   };
 
@@ -417,26 +437,45 @@ const SubscriptionManagement = () => {
     setForm(emptyPlan());
   };
 
-  const setLimit = (key, value) =>
-    setForm((f) => ({ ...f, limits: { ...f.limits, [key]: value } }));
+  const setField = (key, value) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
-  const setUnlimited = (key, on) =>
-    setForm((f) => ({
-      ...f,
-      unlimited: { ...f.unlimited, [key]: on },
-      limits: { ...f.limits, [key]: on ? null : 0 },
-    }));
-
-  const toggleFeature = (key) =>
-    setForm((f) => ({
-      ...f,
-      features: { ...f.features, [key]: !f.features[key] },
-    }));
+  // Build the API payload — flat, matches PlanRequest exactly
+  const buildPayload = () => {
+    const payload = {
+      name: form.name,
+      description: form.description || "",
+      is_active: !!form.is_active,
+    };
+    PLAN_PRICE_FIELDS.forEach((p) => {
+      payload[p.key] = Number(form[p.key]) || 0;
+    });
+    PLAN_LIMIT_FIELDS.forEach((p) => {
+      payload[p.key] = Number(form[p.key]) || 0;
+    });
+    PLAN_FEATURE_FIELDS.forEach((p) => {
+      payload[p.key] = !!form[p.key];
+    });
+    return payload;
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    close();
+    if (editing) {
+      updatePlan.mutate({ id: editing.id, payload: buildPayload() });
+    } else {
+      createPlan.mutate(buildPayload());
+    }
   };
+
+  const handleDelete = () => {
+    if (!editing) return;
+    if (window.confirm(`Delete plan "${editing.name}"? This cannot be undone.`))
+      deletePlan.mutate(editing.id);
+  };
+
+  const isMutating =
+    createPlan.isPending || updatePlan.isPending || deletePlan.isPending;
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -549,13 +588,25 @@ const SubscriptionManagement = () => {
           </Box>
 
           {tab === 0 && (
-            <Grid container spacing={2}>
-              {SUBSCRIPTION_PLANS.map((p) => (
-                <Grid item xs={12} sm={6} lg={3} key={p.id}>
-                  <PlanCard plan={p} onEdit={openEdit} />
+            <>
+              {plansLoading ? (
+                <div className="py-10 flex justify-center">
+                  <CircularProgress sx={{ color: "#02981D" }} />
+                </div>
+              ) : plans.length === 0 ? (
+                <p className="py-10 text-center text-primary_grey_2 text-[13px]">
+                  No plans yet. Click "Create Plan" to add the first one.
+                </p>
+              ) : (
+                <Grid container spacing={2}>
+                  {plans.map((p) => (
+                    <Grid item xs={12} sm={6} lg={3} key={p.id}>
+                      <PlanCard plan={p} onEdit={openEdit} />
+                    </Grid>
+                  ))}
                 </Grid>
-              ))}
-            </Grid>
+              )}
+            </>
           )}
 
           {tab === 1 && (
@@ -572,64 +623,116 @@ const SubscriptionManagement = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {SAMPLE_USERS.map((u) => {
-                    const plan = findPlan(u.plan);
-                    const statusMap = {
-                      active: { bg: "#E6F7EA", color: "#02981D" },
-                      trial: { bg: "#FFF7E8", color: "#B26A00" },
-                      expired: { bg: "#FDECEC", color: "#DC3545" },
-                    };
-                    const s = statusMap[u.planStatus] || {
-                      bg: "#F5F5F5",
-                      color: "#5E5E5E",
-                    };
-                    return (
-                      <tr
-                        key={u.id}
-                        className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA] cursor-pointer"
-                        onClick={() => navigate(`/users/${u.id}`)}
+                  {subsLoading ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center">
+                        <CircularProgress sx={{ color: "#02981D" }} />
+                      </td>
+                    </tr>
+                  ) : subscribers.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="py-10 text-center text-primary_grey_2"
                       >
-                        <td className="py-4 px-3">
-                          <p className="text-[13px] font-medium text-general">
-                            {u.name}
-                          </p>
-                          <p className="text-[12px] text-primary_grey_2">
-                            {u.email}
-                          </p>
-                        </td>
-                        <td className="py-4 px-3">
-                          <span
-                            className="text-[12px] font-semibold px-2 py-1 rounded-md"
-                            style={{
-                              background: plan?.bg,
-                              color: plan?.color,
-                            }}
-                          >
-                            {plan?.name}
-                          </span>
-                        </td>
-                        <td className="py-4 px-3">
-                          <span
-                            className="text-[12px] font-medium px-3 py-1 rounded-full capitalize"
-                            style={{ background: s.bg, color: s.color }}
-                          >
-                            {u.planStatus}
-                          </span>
-                        </td>
-                        <td className="py-4 px-3 text-[12px] text-primary_grey_2">
-                          {u.startDate}
-                        </td>
-                        <td className="py-4 px-3 text-[12px] text-general">
-                          {u.nextBilling}
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <ChevronRightIcon sx={{ color: "#5E5E5E" }} />
-                        </td>
-                      </tr>
-                    );
-                  })}
+                        No subscribers yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    subscribers.map((u) => {
+                      const planName =
+                        u?.subscription || u?.plan || u?.subscription_plan ||
+                        "—";
+                      const planStatus =
+                        u?.subscription_status ||
+                        (u?.subscription_end_date &&
+                        new Date(u.subscription_end_date) < new Date()
+                          ? "expired"
+                          : "active");
+                      const statusMap = {
+                        active: { bg: "#E6F7EA", color: "#02981D" },
+                        trial: { bg: "#FFF7E8", color: "#B26A00" },
+                        expired: { bg: "#FDECEC", color: "#DC3545" },
+                      };
+                      const s = statusMap[planStatus] || {
+                        bg: "#F5F5F5",
+                        color: "#5E5E5E",
+                      };
+                      const displayName =
+                        u?.name ||
+                        [u?.firstname, u?.lastname]
+                          .filter(Boolean)
+                          .join(" ") ||
+                        u?.business?.[0]?.name ||
+                        "—";
+                      return (
+                        <tr
+                          key={u?.id}
+                          className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA] cursor-pointer"
+                          onClick={() => navigate(`/users/${u?.id}`)}
+                        >
+                          <td className="py-4 px-3">
+                            <p className="text-[13px] font-medium text-general">
+                              {displayName}
+                            </p>
+                            <p className="text-[12px] text-primary_grey_2">
+                              {u?.email}
+                            </p>
+                          </td>
+                          <td className="py-4 px-3">
+                            <span
+                              className="text-[12px] font-semibold px-2 py-1 rounded-md"
+                              style={{
+                                background: "#F6FFF8",
+                                color: "#02981D",
+                              }}
+                            >
+                              {planName}
+                            </span>
+                          </td>
+                          <td className="py-4 px-3">
+                            <span
+                              className="text-[12px] font-medium px-3 py-1 rounded-full capitalize"
+                              style={{ background: s.bg, color: s.color }}
+                            >
+                              {planStatus}
+                            </span>
+                          </td>
+                          <td className="py-4 px-3 text-[12px] text-primary_grey_2">
+                            {u?.subscription_start_date || "—"}
+                          </td>
+                          <td className="py-4 px-3 text-[12px] text-general">
+                            {u?.next_billing_date ||
+                              u?.subscription_end_date ||
+                              "—"}
+                          </td>
+                          <td className="py-4 px-3 text-right">
+                            <ChevronRightIcon sx={{ color: "#5E5E5E" }} />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
+
+              {/* Subscribers pagination */}
+              {!subsLoading && subscribers.length > 0 && (
+                <CustomPagination
+                  currentPage={subsPage}
+                  totalPages={
+                    subsData?.total_pages ||
+                    subsData?.pages ||
+                    Math.max(
+                      1,
+                      Math.ceil(
+                        (subsData?.total || subscribers.length) / rowsPerPage
+                      )
+                    )
+                  }
+                  onPageChange={setSubsPage}
+                />
+              )}
             </div>
           )}
 
@@ -640,7 +743,10 @@ const SubscriptionManagement = () => {
                 <Select
                   size="small"
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setSubTrxPage(1);
+                  }}
                   sx={{ minWidth: 140 }}
                 >
                   <MenuItem value="all">All Status</MenuItem>
@@ -651,7 +757,10 @@ const SubscriptionManagement = () => {
                 <Select
                   size="small"
                   value={cycleFilter}
-                  onChange={(e) => setCycleFilter(e.target.value)}
+                  onChange={(e) => {
+                    setCycleFilter(e.target.value);
+                    setSubTrxPage(1);
+                  }}
                   sx={{ minWidth: 150 }}
                 >
                   <MenuItem value="all">All Cycles</MenuItem>
@@ -664,7 +773,10 @@ const SubscriptionManagement = () => {
                 <Select
                   size="small"
                   value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
+                  onChange={(e) => {
+                    setTypeFilter(e.target.value);
+                    setSubTrxPage(1);
+                  }}
                   sx={{ minWidth: 150 }}
                 >
                   <MenuItem value="all">All Types</MenuItem>
@@ -693,7 +805,13 @@ const SubscriptionManagement = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredSubTrx.length === 0 ? (
+                    {subTrxLoading ? (
+                      <tr>
+                        <td colSpan={11} className="py-10 text-center">
+                          <CircularProgress sx={{ color: "#02981D" }} />
+                        </td>
+                      </tr>
+                    ) : filteredSubTrx.length === 0 ? (
                       <tr>
                         <td
                           colSpan={11}
@@ -704,7 +822,6 @@ const SubscriptionManagement = () => {
                       </tr>
                     ) : (
                       filteredSubTrx.map((t) => {
-                        const plan = findPlan(t.plan);
                         const typeBadge = TYPE_BADGE[t.type] || {
                           bg: "#F5F5F5",
                           color: "#5E5E5E",
@@ -724,11 +841,11 @@ const SubscriptionManagement = () => {
                               <span
                                 className="text-[12px] font-semibold px-2 py-1 rounded-md"
                                 style={{
-                                  background: plan?.bg,
-                                  color: plan?.color,
+                                  background: "#F6FFF8",
+                                  color: "#02981D",
                                 }}
                               >
-                                {plan?.name}
+                                {t.plan || "—"}
                               </span>
                             </td>
                             <td className="py-4 px-3">
@@ -788,6 +905,25 @@ const SubscriptionManagement = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Sub-trx pagination */}
+              {!subTrxLoading && filteredSubTrx.length > 0 && (
+                <CustomPagination
+                  currentPage={subTrxPage}
+                  totalPages={
+                    subTrxData?.total_pages ||
+                    subTrxData?.pages ||
+                    Math.max(
+                      1,
+                      Math.ceil(
+                        (subTrxData?.total || filteredSubTrx.length) /
+                          rowsPerPage
+                      )
+                    )
+                  }
+                  onPageChange={setSubTrxPage}
+                />
+              )}
             </>
           )}
         </CardContent>
@@ -818,66 +954,27 @@ const SubscriptionManagement = () => {
                   size="small"
                   label="Plan Name"
                   value={form.name}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, name: e.target.value }))
-                  }
+                  onChange={(e) => setField("name", e.target.value)}
                   required
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Billing Cycle</InputLabel>
-                  <Select
-                    label="Billing Cycle"
-                    value={form.cycle}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, cycle: e.target.value }))
-                    }
-                  >
-                    {BILLING_CYCLES.map((c) => (
-                      <MenuItem key={c} value={c}>
-                        {c}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Price"
-                  type="number"
-                  value={form.price}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, price: e.target.value }))
-                  }
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">₦</InputAdornment>
-                    ),
-                  }}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Plan ID (slug)"
-                  placeholder="e.g. syncpro"
-                  value={form.id}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      id: e.target.value
-                        .toLowerCase()
-                        .replace(/\s+/g, "-"),
-                    }))
-                  }
-                  required
-                  disabled={!!editing}
-                />
+                <label className="flex items-center gap-2 h-full pl-2 select-none cursor-pointer">
+                  <Switch
+                    checked={!!form.is_active}
+                    onChange={(e) => setField("is_active", e.target.checked)}
+                    sx={{
+                      "& .MuiSwitch-switchBase.Mui-checked": {
+                        color: "#02981D",
+                      },
+                      "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
+                        { backgroundColor: "#02981D" },
+                    }}
+                  />
+                  <span className="text-[13px] text-general">
+                    Plan is active
+                  </span>
+                </label>
               </Grid>
               <Grid item xs={12}>
                 <TextField
@@ -887,12 +984,42 @@ const SubscriptionManagement = () => {
                   multiline
                   minRows={2}
                   value={form.description}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, description: e.target.value }))
-                  }
+                  onChange={(e) => setField("description", e.target.value)}
                 />
               </Grid>
             </Grid>
+          </div>
+
+          {/* Pricing per billing cycle */}
+          <div className="border border-[#EFEFEF] rounded-xl p-4">
+            <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
+              Pricing (₦)
+            </p>
+            <Grid container spacing={2}>
+              {PLAN_PRICE_FIELDS.map((p) => (
+                <Grid item xs={6} sm={3} key={p.key}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="number"
+                    label={p.label}
+                    value={form[p.key] ?? 0}
+                    onChange={(e) =>
+                      setField(p.key, Number(e.target.value) || 0)
+                    }
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">₦</InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+            <p className="text-[11px] text-primary_grey_2 mt-2">
+              Set a price for each cycle you want to offer — leave a cycle at 0
+              to disable it for this plan.
+            </p>
           </div>
 
           {/* Limits */}
@@ -900,53 +1027,22 @@ const SubscriptionManagement = () => {
             <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
               Usage Limits
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Grid container spacing={2}>
               {PLAN_LIMIT_FIELDS.map((f) => (
-                <div
-                  key={f.key}
-                  className="border border-[#EFEFEF] rounded-lg p-3"
-                >
-                  <p className="text-[13px] font-medium text-general mb-2">
-                    {f.label}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <TextField
-                      type="number"
-                      size="small"
-                      fullWidth
-                      value={
-                        form.unlimited?.[f.key]
-                          ? ""
-                          : form.limits?.[f.key] ?? 0
-                      }
-                      onChange={(e) =>
-                        setLimit(f.key, Number(e.target.value))
-                      }
-                      disabled={form.unlimited?.[f.key]}
-                      placeholder={form.unlimited?.[f.key] ? "Unlimited" : ""}
-                    />
-                    <label className="flex items-center gap-1 text-[12px] text-primary_grey_2 whitespace-nowrap select-none">
-                      <Switch
-                        size="small"
-                        checked={!!form.unlimited?.[f.key]}
-                        onChange={(e) =>
-                          setUnlimited(f.key, e.target.checked)
-                        }
-                        sx={{
-                          "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: "#02981D",
-                          },
-                          "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
-                            { backgroundColor: "#02981D" },
-                        }}
-                      />
-                      <InfinityIcon sx={{ fontSize: 14 }} />
-                      Unlimited
-                    </label>
-                  </div>
-                </div>
+                <Grid item xs={12} sm={6} key={f.key}>
+                  <TextField
+                    type="number"
+                    size="small"
+                    fullWidth
+                    label={f.label}
+                    value={form[f.key] ?? 0}
+                    onChange={(e) =>
+                      setField(f.key, Number(e.target.value) || 0)
+                    }
+                  />
+                </Grid>
               ))}
-            </div>
+            </Grid>
           </div>
 
           {/* Features */}
@@ -962,8 +1058,8 @@ const SubscriptionManagement = () => {
                 >
                   <span className="text-[13px] text-general">{f.label}</span>
                   <Switch
-                    checked={!!form.features?.[f.key]}
-                    onChange={() => toggleFeature(f.key)}
+                    checked={!!form[f.key]}
+                    onChange={(e) => setField(f.key, e.target.checked)}
                     sx={{
                       "& .MuiSwitch-switchBase.Mui-checked": {
                         color: "#02981D",
@@ -981,6 +1077,8 @@ const SubscriptionManagement = () => {
             {editing && (
               <Button
                 type="button"
+                onClick={handleDelete}
+                disabled={isMutating}
                 startIcon={<DeleteIcon />}
                 sx={{
                   textTransform: "none",
@@ -989,12 +1087,13 @@ const SubscriptionManagement = () => {
                   "&:hover": { background: "#FDECEC" },
                 }}
               >
-                Delete Plan
+                {deletePlan.isPending ? "Deleting..." : "Delete Plan"}
               </Button>
             )}
             <Button
               type="button"
               onClick={close}
+              disabled={isMutating}
               sx={{
                 textTransform: "none",
                 color: "#5E5E5E",
@@ -1006,6 +1105,7 @@ const SubscriptionManagement = () => {
             <Button
               type="submit"
               variant="contained"
+              disabled={isMutating}
               sx={{
                 textTransform: "none",
                 background: "#02981D",
@@ -1013,11 +1113,19 @@ const SubscriptionManagement = () => {
                 "&:hover": { background: "#017a17" },
               }}
             >
-              {editing ? "Save Changes" : "Create Plan"}
+              {createPlan.isPending || updatePlan.isPending ? (
+                <CircularProgress size="1.2rem" sx={{ color: "#fff" }} />
+              ) : editing ? (
+                "Save Changes"
+              ) : (
+                "Create Plan"
+              )}
             </Button>
           </div>
         </form>
       </CustomModal>
+
+      <ToastContainer position="top-right" autoClose={4000} />
     </div>
   );
 };

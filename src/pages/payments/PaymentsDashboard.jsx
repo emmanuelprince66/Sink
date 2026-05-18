@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Divider,
   Grid,
   InputAdornment,
@@ -26,8 +27,11 @@ import {
   ClearRounded as ClearIcon,
 } from "@mui/icons-material";
 import CustomModal from "../../components/CustomModal";
+import CustomPagination from "../../components/CustomPagination";
 import FormattedPrice from "../../utils/FormattedPrice";
-import { PAYMENT_TRANSACTIONS } from "./paymentsData";
+import { transactionsPaymentDataUrl } from "../../api/endpoint";
+import useFetchData from "../../hooks/useFetchData";
+import { useDateContext } from "../../utils/DateContext";
 
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   <Card
@@ -79,64 +83,123 @@ const METHOD_OPTIONS = [
   "Buy Now Pay Later",
 ];
 
+const TAB_TYPE = ["", "Credit", "Debit", "BNPL"]; // index → API "type" param
+
+const mapApiPayment = (t) => ({
+  id: t?.id || t?.reference || "—",
+  date: t?.created_at || t?.date || "—",
+  type:
+    t?.type ||
+    (t?.direction === "credit"
+      ? "Credit"
+      : t?.direction === "debit"
+      ? "Debit"
+      : t?.is_bnpl
+      ? "BNPL"
+      : "Credit"),
+  amount: Number(t?.amount || 0),
+  method: t?.payment_method || t?.method || "—",
+  merchant: t?.merchant_name || t?.merchant || t?.origin || "—",
+  customer:
+    t?.customer_name || t?.customer || t?.recipient || t?.account_name || "—",
+  status: t?.status || "Pending",
+  commission: Number(t?.commission || 0),
+  vat: Number(t?.vat || 0),
+});
+
 const PaymentsDashboard = () => {
-  const [tab, setTab] = useState(0); // All / Inflow / Outflow / BNPL
+  const { selectedDates } = useDateContext();
+  const [tab, setTab] = useState(0);
   const [methodFilter, setMethodFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage] = useState(50);
+
+  // The wallet-transactions endpoint only supports search/dates/page/limit
+  // server-side. Tab (type), method, and status filters are applied
+  // client-side over the current page.
+  const apiUrl = transactionsPaymentDataUrl(
+    currentPage,
+    rowsPerPage,
+    search,
+    "",
+    selectedDates
+  );
+  const { data, isLoading } = useFetchData(
+    ["fetchPayments", apiUrl, currentPage, search],
+    apiUrl
+  );
+
+  const rows = useMemo(() => {
+    const raw = Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data?.transactions?.data)
+      ? data.transactions.data
+      : Array.isArray(data?.results)
+      ? data.results
+      : Array.isArray(data)
+      ? data
+      : [];
+    return raw.map(mapApiPayment);
+  }, [data]);
+
+  const totalPages =
+    data?.total_pages ||
+    data?.pages ||
+    data?.transactions?.total_pages ||
+    Math.max(1, Math.ceil((data?.total || rows.length) / rowsPerPage));
 
   const totals = useMemo(() => {
-    const inflow = PAYMENT_TRANSACTIONS.filter(
-      (t) => t.type === "Credit" && t.status === "Successful"
-    ).reduce((a, t) => a + t.amount, 0);
-    const outflow = PAYMENT_TRANSACTIONS.filter(
-      (t) => t.type === "Debit" && t.status === "Successful"
-    ).reduce((a, t) => a + t.amount, 0);
-    const commission = PAYMENT_TRANSACTIONS.filter(
-      (t) => t.status === "Successful"
-    ).reduce((a, t) => a + (t.commission || 0), 0);
-    const vat = PAYMENT_TRANSACTIONS.filter(
-      (t) => t.status === "Successful"
-    ).reduce((a, t) => a + (t.vat || 0), 0);
-    const bnpl = PAYMENT_TRANSACTIONS.filter(
-      (t) => t.type === "BNPL" && t.status === "Successful"
-    ).reduce((a, t) => a + t.amount, 0);
-    return {
-      inflow,
-      outflow,
-      net: inflow - outflow,
-      commission,
-      vat,
-      bnpl,
-    };
-  }, []);
+    // Prefer API-supplied totals; otherwise derive from current page rows
+    const t = data?.totals || {};
+    const inflow = Number(
+      t.inflow ||
+        rows
+          .filter((r) => r.type === "Credit" && r.status === "Successful")
+          .reduce((a, r) => a + r.amount, 0)
+    );
+    const outflow = Number(
+      t.outflow ||
+        rows
+          .filter((r) => r.type === "Debit" && r.status === "Successful")
+          .reduce((a, r) => a + r.amount, 0)
+    );
+    const commission = Number(
+      t.commission ||
+        t.revenue_profit ||
+        rows
+          .filter((r) => r.status === "Successful")
+          .reduce((a, r) => a + r.commission, 0)
+    );
+    const vat = Number(
+      t.vat ||
+        rows
+          .filter((r) => r.status === "Successful")
+          .reduce((a, r) => a + r.vat, 0)
+    );
+    const bnpl = Number(
+      t.bnpl ||
+        rows
+          .filter((r) => r.type === "BNPL" && r.status === "Successful")
+          .reduce((a, r) => a + r.amount, 0)
+    );
+    return { inflow, outflow, net: inflow - outflow, commission, vat, bnpl };
+  }, [rows, data]);
 
+  // Apply tab / method / status as client-side filters over the current page
   const filtered = useMemo(() => {
-    return PAYMENT_TRANSACTIONS.filter((t) => {
-      const matchTab =
-        tab === 0
-          ? true
-          : tab === 1
-          ? t.type === "Credit"
-          : tab === 2
-          ? t.type === "Debit"
-          : tab === 3
-          ? t.type === "BNPL"
-          : true;
+    const tabType = TAB_TYPE[tab];
+    return rows.filter((r) => {
+      const matchTab = tabType ? r.type === tabType : true;
       const matchMethod =
-        methodFilter === "all" ? true : t.method === methodFilter;
+        methodFilter === "all" ? true : r.method === methodFilter;
       const matchStatus =
-        statusFilter === "all" ? true : t.status === statusFilter;
-      const matchSearch = search
-        ? [t.id, t.merchant, t.customer]
-            .join(" ")
-            .toLowerCase()
-            .includes(search.toLowerCase())
-        : true;
-      return matchTab && matchMethod && matchStatus && matchSearch;
+        statusFilter === "all" ? true : r.status === statusFilter;
+      return matchTab && matchMethod && matchStatus;
     });
-  }, [tab, methodFilter, statusFilter, search]);
+  }, [rows, tab, methodFilter, statusFilter]);
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -229,7 +292,10 @@ const PaymentsDashboard = () => {
           <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
             <Tabs
               value={tab}
-              onChange={(_, v) => setTab(v)}
+              onChange={(_, v) => {
+                setTab(v);
+                setCurrentPage(1);
+              }}
               variant="scrollable"
               sx={{
                 "& .MuiTab-root": {
@@ -253,7 +319,10 @@ const PaymentsDashboard = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
             <TextField
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Search by transaction ID, merchant, or customer"
               size="small"
               fullWidth
@@ -271,7 +340,10 @@ const PaymentsDashboard = () => {
               <Select
                 size="small"
                 value={methodFilter}
-                onChange={(e) => setMethodFilter(e.target.value)}
+                onChange={(e) => {
+                  setMethodFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 sx={{ minWidth: 170 }}
               >
                 <MenuItem value="all">All Methods</MenuItem>
@@ -284,7 +356,10 @@ const PaymentsDashboard = () => {
               <Select
                 size="small"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 sx={{ minWidth: 140 }}
               >
                 <MenuItem value="all">All Status</MenuItem>
@@ -313,7 +388,13 @@ const PaymentsDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={10} className="py-10 text-center">
+                      <CircularProgress sx={{ color: "#02981D" }} />
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
                   <tr>
                     <td
                       colSpan={10}
@@ -385,6 +466,15 @@ const PaymentsDashboard = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {!isLoading && filtered.length > 0 && (
+            <CustomPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
 
           {/* Mobile cards */}
           <div className="md:hidden flex flex-col gap-3">

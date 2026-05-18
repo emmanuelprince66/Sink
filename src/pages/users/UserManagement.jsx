@@ -4,6 +4,7 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Grid,
   InputAdornment,
   MenuItem,
@@ -19,7 +20,10 @@ import {
   ChevronRightRounded as ChevronRightIcon,
 } from "@mui/icons-material";
 import FormattedPrice from "../../utils/FormattedPrice";
-import { SAMPLE_USERS, findPlan } from "./userData";
+import { findPlan } from "./userData";
+import { allMembersUrl } from "../../api/endpoint";
+import useFetchData from "../../hooks/useFetchData";
+import CustomPagination from "../../components/CustomPagination";
 
 const STATUS_STYLE = {
   active: { bg: "#E6F7EA", color: "#02981D", label: "Active" },
@@ -85,38 +89,85 @@ const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   </Card>
 );
 
+// Map an API list-row to the UI shape. Uses the real list payload fields.
+const mapApiUser = (u) => {
+  const role = (u?.role || "").toString().toUpperCase();
+  const subscription = (u?.subscription || "—").toString();
+  // Staff accounts (attendants, managers) belong to a business owner;
+  // OWNER rows are the merchant accounts themselves
+  const type = role === "OWNER" ? "Business" : role || "Staff";
+  return {
+    id: u?.id || "—",
+    name: u?.full_name || "—",
+    role,
+    type,
+    email: u?.email || "—",
+    phone: u?.phone || "—",
+    plan: subscription, // e.g. "FREE", "SYNC-GROWTH", "N/A"
+    status: u?.is_active === false ? "inactive" : "active",
+    tier: u?.tier || "—", // already a string like "Tier 1"
+    totalTransactions: Number(u?.total_transactions || 0), // amount in ₦
+    walletBalance: Number(u?.wallet_balance || 0),
+    bankName: u?.bank_name || null,
+    accountNumber: u?.account_number || null,
+    subscriptionAmount: Number(u?.subscription_amount || 0),
+    subscriptionEnd: u?.subscription_end_date || null,
+    joined: u?.created_at ? u.created_at.slice(0, 10) : "—",
+    raw: u,
+  };
+};
+
+
 const UserManagement = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
   const [tierFilter, setTierFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage] = useState(50);
+
+  const apiUrl = allMembersUrl(
+    currentPage,
+    rowsPerPage,
+    planFilter === "all" ? "ALL" : planFilter,
+    search
+  );
+  const { data, isLoading } = useFetchData(
+    ["fetchMerchantUsers", apiUrl],
+    apiUrl
+  );
+
+  const users = useMemo(() => {
+    const raw = Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data?.results)
+      ? data.results
+      : Array.isArray(data)
+      ? data
+      : [];
+    return raw.map(mapApiUser);
+  }, [data]);
 
   const filtered = useMemo(() => {
-    return SAMPLE_USERS.filter((u) => {
-      const matchSearch = search
-        ? [u.id, u.name, u.email, u.phone, u.businessName]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase()
-            .includes(search.toLowerCase())
-        : true;
+    return users.filter((u) => {
       const matchStatus =
         statusFilter === "all" ? true : u.status === statusFilter;
-      const matchPlan = planFilter === "all" ? true : u.plan === planFilter;
       const matchTier = tierFilter === "all" ? true : u.tier === tierFilter;
-      return matchSearch && matchStatus && matchPlan && matchTier;
+      return matchStatus && matchTier;
     });
-  }, [search, statusFilter, planFilter, tierFilter]);
+  }, [users, statusFilter, tierFilter]);
 
   const counts = useMemo(() => {
     return {
-      total: SAMPLE_USERS.length,
-      active: SAMPLE_USERS.filter((u) => u.status === "active").length,
-      suspended: SAMPLE_USERS.filter((u) => u.status === "suspended").length,
-      pending: SAMPLE_USERS.filter((u) => u.status === "pending").length,
+      // total comes from the server (across all pages); the others stay
+      // derived from the current page rows since the API doesn't expose them
+      total: data?.total ?? users.length,
+      active: users.filter((u) => u.status === "active").length,
+      suspended: 0,
+      pending: 0,
     };
-  }, []);
+  }, [users, data]);
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -189,7 +240,10 @@ const UserManagement = () => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
             <TextField
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Search ID, name, email or phone"
               size="small"
               fullWidth
@@ -207,7 +261,10 @@ const UserManagement = () => {
               <Select
                 size="small"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 sx={{ minWidth: 140 }}
               >
                 <MenuItem value="all">All Status</MenuItem>
@@ -218,18 +275,26 @@ const UserManagement = () => {
               <Select
                 size="small"
                 value={planFilter}
-                onChange={(e) => setPlanFilter(e.target.value)}
+                onChange={(e) => {
+                  setPlanFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 sx={{ minWidth: 140 }}
               >
                 <MenuItem value="all">All Plans</MenuItem>
-                <MenuItem value="syncpro">Syncpro</MenuItem>
-                <MenuItem value="syncplus">Syncplus</MenuItem>
-                <MenuItem value="trial">Trial</MenuItem>
+                <MenuItem value="TRIAL">Trial</MenuItem>
+                <MenuItem value="STARTER">Starter</MenuItem>
+                <MenuItem value="SYNC-PLUS">Sync-Plus</MenuItem>
+                <MenuItem value="SYNC-PRO">Sync-Pro</MenuItem>
+                <MenuItem value="EXPIRED">Expired</MenuItem>
               </Select>
               <Select
                 size="small"
                 value={tierFilter}
-                onChange={(e) => setTierFilter(e.target.value)}
+                onChange={(e) => {
+                  setTierFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
                 sx={{ minWidth: 130 }}
               >
                 <MenuItem value="all">All Tiers</MenuItem>
@@ -257,7 +322,13 @@ const UserManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={9} className="py-10 text-center">
+                      <CircularProgress sx={{ color: "#02981D" }} />
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
                   <tr>
                     <td
                       colSpan={9}
@@ -298,7 +369,7 @@ const UserManagement = () => {
                         {u.tier}
                       </td>
                       <td className="py-4 px-3 text-[13px] text-general text-right">
-                        <FormattedPrice amount={u.inflow + u.outflow} />
+                        <FormattedPrice amount={u.totalTransactions} />
                       </td>
                       <td className="py-4 px-3 text-[12px] text-primary_grey_2">
                         {u.joined}
@@ -312,6 +383,19 @@ const UserManagement = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {!isLoading && filtered.length > 0 && (
+            <CustomPagination
+              currentPage={currentPage}
+              totalPages={
+                data?.total_pages ||
+                data?.pages ||
+                Math.max(1, Math.ceil((data?.total || filtered.length) / rowsPerPage))
+              }
+              onPageChange={setCurrentPage}
+            />
+          )}
 
           {/* Mobile cards */}
           <div className="md:hidden flex flex-col gap-3">

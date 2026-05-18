@@ -23,6 +23,7 @@ import KYCManagement from "./pages/kyc/KYCManagement";
 import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
 import MemberProfile from "./pages/members/MemberProfile";
 import PaymentsDashboard from "./pages/payments/PaymentsDashboard";
+import Partners from "./pages/partners/Partners";
 import Rmerchant from "./pages/r-merchant/Rmerchant";
 import SubscriptionManagement from "./pages/subscriptions/SubscriptionManagement";
 import UserManagement from "./pages/users/UserManagement";
@@ -103,6 +104,11 @@ const RoutesContainer = () => {
       component: <PaymentsDashboard />,
       path: "/payments",
       name: "Payments Dashboard",
+    },
+    {
+      component: <Partners />,
+      path: "/partners",
+      name: "Partners",
     },
   ];
   return (

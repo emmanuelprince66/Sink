@@ -33,7 +33,7 @@ const AddAdministrator = ({ handleCloseAddAdminModal, setRefetchTeam }) => {
     mutationFn: async (formData) => {
       try {
         const response = await AuthAxios({
-          url: "/admin/invite/",
+          url: "/auth/invite/",
           method: "POST",
           data: formData,
           headers: {
@@ -241,15 +241,12 @@ const AddAdministrator = ({ handleCloseAddAdminModal, setRefetchTeam }) => {
                         error={!!errors.role}
                       >
                         <MenuItem value="" disabled>
-                          <Box> Select Administrator Role</Box>
+                          <Box>Select Administrator Role</Box>
                         </MenuItem>
-                        <MenuItem value="Administrator">Administrator</MenuItem>
-                        <MenuItem value="Accountant">Accountant</MenuItem>
-                        <MenuItem value="Customer-support">
-                          Customer Support
-                        </MenuItem>{" "}
-                        <MenuItem value="Loan-manager">Loan Manager</MenuItem>{" "}
-                        {/* Corrected spelling */}
+                        <MenuItem value="manager">Manager</MenuItem>
+                        <MenuItem value="accountant">Accountant</MenuItem>
+                        <MenuItem value="moderator">Moderator</MenuItem>
+                        <MenuItem value="support">Support</MenuItem>
                       </Select>
                     )}
                   />

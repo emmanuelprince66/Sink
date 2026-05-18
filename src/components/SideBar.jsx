@@ -2,6 +2,7 @@ import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettin
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import CardMembershipOutlinedIcon from "@mui/icons-material/CardMembershipOutlined";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
@@ -120,6 +121,15 @@ const SideBar = () => {
           name: "Administrators",
           link: "administrator",
           icon: (active) => <Sseven color={active ? "white" : "#5E5E5E"} />,
+        },
+        {
+          name: "Partners",
+          link: "partners",
+          icon: (active) => (
+            <HandshakeOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
         },
         {
           name: "Roles & Permissions",
