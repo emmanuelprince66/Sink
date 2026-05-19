@@ -1388,7 +1388,10 @@ const Transactions = () => {
             >
               {/* <Tab value={TRANSACTION_TABS.PAYMENT} label="Payment Transactions" /> */}
               {/* <Tab value={TRANSACTION_TABS.SUBSCRIPTION} label="Subscription Transactions" /> */}
-              {/* <Tab value={TRANSACTION_TABS.MARKETING} label="Marketing Automation" /> */}
+              <Tab
+                value={TRANSACTION_TABS.MARKETING}
+                label="Marketing Automation"
+              />
               <Tab value={TRANSACTION_TABS.CAMPAIGN} label="Campaign" />
             </Tabs>
           </Box>
