@@ -28,10 +28,12 @@ export const allMembersUrl = (
     search: searchValue,
   })}`;
 
-export const overveiwUrl = (selectedDates) => {
-  return `/profile/overview/?start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
-  x;
-};
+// GET /profile/profile/ — Profile Overview (per swagger)
+export const overveiwUrl = (selectedDates) =>
+  `/profile/profile/${buildQuery({
+    start_date: selectedDates?.startDate,
+    end_date: selectedDates?.endDate,
+  })}`;
 
 export const corporativeDataUrl = () => {
   return `/admin/coporative_stats/`;

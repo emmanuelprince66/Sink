@@ -63,8 +63,8 @@ const SideBar = () => {
           ),
         },
         {
-          name: "Transactions",
-          link: "transactions",
+          name: "Campaign",
+          link: "campaign",
           icon: (active) => <Seight color={active ? "white" : "#5E5E5E"} />,
         },
         {
