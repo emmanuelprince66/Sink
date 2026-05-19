@@ -29,7 +29,7 @@ export const allMembersUrl = (
   })}`;
 
 export const overveiwUrl = (selectedDates) => {
-  return `/profile/profile/?start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
+  return `/profile/overview/?start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
   x;
 };
 
@@ -45,7 +45,6 @@ export const targetSavingsUrl = () => {
 export const membersProfileUrl = (memberId) => {
   return `/merchant/user/${memberId}/`;
 };
-
 export const investmentListDataUrl = (filterValue, selectedDates) => {
   return `/admin/investment_stats/?status=${filterValue}&start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
 };

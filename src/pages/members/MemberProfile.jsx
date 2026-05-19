@@ -169,8 +169,6 @@ const MemberProfile = ({ setShowComp }) => {
   const queryKey = ["fetchMembersProfile", apiUrl];
   const { data, error, isLoading } = useFetchData(queryKey, apiUrl);
 
-  console.log("Member Profile data:", data);
-
   // Modal handlers
   const modalHandlers = {
     closeReferee: () => setOpenRefreeModal(false),
@@ -249,29 +247,19 @@ const MemberProfile = ({ setShowComp }) => {
       label: "Wallet Balance",
       value: <FormattedPrice amount={data?.wallet_balance} />,
     },
-    {
-      icon: mNine,
-      label: "Business Name",
-      value: data?.business[0]?.name || "",
-    },
+    { icon: mNine, label: "Business Name", value: data?.business_name },
     { icon: mNine, label: "Business Type", value: data?.business_type },
     { icon: mNine, label: "Country", value: data?.country },
     { icon: mNine, label: "State", value: data?.state },
     { icon: mNine, label: "Town", value: data?.town },
-    { icon: mNine, label: "Address", value: data?.business[0]?.street },
     {
       icon: mNine,
       label: "Daily Active Appearance",
-      value: data?.is_active ? "Active" : "Inactive",
-    },
-    {
-      icon: mNine,
-      label: "Last Seen",
-      value: formattedDate(data?.last_seen),
+      value: data?.daily_active,
     },
     { icon: mFour, label: "Membership ID", value: data?.membership_id },
-    { icon: mFour, label: "Account Number", value: data?.account_number },
-    { icon: mFive, label: "KYC Level", value: data?.kyc_level },
+    { icon: mFour, label: "Account Number", value: data?.membership_id },
+    { icon: mFive, label: "KYC Level", value: data?.tier },
     {
       icon: mSix,
       label: "Date Joined",
@@ -290,10 +278,9 @@ const MemberProfile = ({ setShowComp }) => {
 
   // Campaign fields
   const campaignFields = [
-    { icon: mTen, label: "Units Left", value: data?.campaign_units_left },
-    { icon: mTen, label: "Total Count", value: data?.campaigns_count },
+    { icon: mTen, label: "Units Left", value: data?.wages_point },
     { icon: mEl, label: "Total SMS Sent", value: data?.total_referal_balance },
-    { icon: mSeven, label: "Total Amount", value: data?.campaign_total_amount },
+    { icon: mSeven, label: "Total Amount", value: data?.referal_count },
     { icon: null, label: "Total Users SMS", value: data?.referal_count },
   ];
 
@@ -560,7 +547,7 @@ const MemberProfile = ({ setShowComp }) => {
                               </TableRow>
                             </TableHead>
                             <TableBody>
-                              {!data?.recent_transactions ? (
+                              {!data?.transactions ? (
                                 <TableRow>
                                   <TableCell
                                     colSpan="8"
@@ -572,10 +559,10 @@ const MemberProfile = ({ setShowComp }) => {
                                     />
                                   </TableCell>
                                 </TableRow>
-                              ) : data?.recent_transactions &&
-                                Array.isArray(data?.recent_transactions) &&
-                                data?.recent_transactions?.length > 0 ? (
-                                data?.recent_transactions?.map((item, i) => (
+                              ) : data?.transactions &&
+                                Array.isArray(data?.transactions) &&
+                                data?.transactions?.length > 0 ? (
+                                data?.transactions?.map((item, i) => (
                                   <TableRow key={i + 2}>
                                     <TableCell>
                                       {page * rowsPerPage + i + 1}

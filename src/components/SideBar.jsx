@@ -13,7 +13,7 @@ import Seight from "../assets/sidebar/Seight";
 import Sone from "../assets/sidebar/Sone";
 import Sseven from "../assets/sidebar/Sseven";
 import Ssix from "../assets/sidebar/Ssix";
-import Stwo from "../assets/sidebar/Stwo";
+// import Stwo from "../assets/sidebar/Stwo";
 import sinkTwo from "../assets/sink/sink2.png";
 
 const SideBar = () => {
@@ -63,8 +63,8 @@ const SideBar = () => {
           ),
         },
         {
-          name: "Campaign",
-          link: "campaign",
+          name: "Transactions",
+          link: "transactions",
           icon: (active) => <Seight color={active ? "white" : "#5E5E5E"} />,
         },
         {
