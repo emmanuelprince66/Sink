@@ -38,11 +38,12 @@ const SideBar = () => {
           link: "overview",
           icon: (active) => <Sone color={active ? "white" : "#5E5E5E"} />,
         },
-        {
-          name: "Merchants",
-          link: "members",
-          icon: (active) => <Stwo color={active ? "white" : "#5E5E5E"} />,
-        },
+        // Merchants hidden — Users page covers this now
+        // {
+        //   name: "Merchants",
+        //   link: "members",
+        //   icon: (active) => <Stwo color={active ? "white" : "#5E5E5E"} />,
+        // },
         {
           name: "Users",
           link: "users",

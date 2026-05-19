@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { format, parseISO } from "date-fns";
 import {
   Box,
   Button,
@@ -21,17 +22,54 @@ import {
   TrendingDownOutlined as OutflowIcon,
   AccountBalanceWalletOutlined as BalanceIcon,
   PaidOutlined as CommissionIcon,
-  ReceiptOutlined as VatIcon,
-  ScheduleOutlined as BnplIcon,
   ChevronRightRounded as ChevronRightIcon,
   ClearRounded as ClearIcon,
 } from "@mui/icons-material";
 import CustomModal from "../../components/CustomModal";
 import CustomPagination from "../../components/CustomPagination";
+import SelectDate from "../../components/SelectDate";
 import FormattedPrice from "../../utils/FormattedPrice";
 import { transactionsPaymentDataUrl } from "../../api/endpoint";
 import useFetchData from "../../hooks/useFetchData";
 import { useDateContext } from "../../utils/DateContext";
+
+// ── helpers ──
+const fmtDate = (iso) => {
+  if (!iso) return "—";
+  try {
+    return format(parseISO(iso), "dd MMM yyyy · HH:mm");
+  } catch {
+    return iso;
+  }
+};
+
+const TYPE_STYLE = {
+  CREDIT: { bg: "#E6F7EA", color: "#02981D" },
+  DEBIT: { bg: "#FDECEC", color: "#DC3545" },
+  BNPL: { bg: "#EEF2FF", color: "#3949AB" },
+  SUBSCRIPTION: { bg: "#F3E8FF", color: "#7C3AED" },
+  TRANSFER: { bg: "#E0F2FE", color: "#0369A1" },
+  WITHDRAWAL: { bg: "#FFF1E0", color: "#C2410C" },
+  REFUND: { bg: "#FFF7E8", color: "#B26A00" },
+};
+const typeStyle = (t) =>
+  TYPE_STYLE[(t || "").toString().toUpperCase()] || {
+    bg: "#F5F5F5",
+    color: "#5E5E5E",
+  };
+
+const STATUS_STYLE = {
+  SUCCESS: { bg: "#E6F7EA", color: "#02981D", label: "Success" },
+  SUCCESSFUL: { bg: "#E6F7EA", color: "#02981D", label: "Successful" },
+  FAILED: { bg: "#FDECEC", color: "#DC3545", label: "Failed" },
+  PENDING: { bg: "#FFF7E8", color: "#B26A00", label: "Pending" },
+};
+const statusStyle = (s) =>
+  STATUS_STYLE[(s || "").toString().toUpperCase()] || {
+    bg: "#F5F5F5",
+    color: "#5E5E5E",
+    label: s,
+  };
 
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   <Card
@@ -64,47 +102,17 @@ const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   </Card>
 );
 
-const STATUS_STYLE = {
-  Successful: { bg: "#E6F7EA", color: "#02981D" },
-  Failed: { bg: "#FDECEC", color: "#DC3545" },
-  Pending: { bg: "#FFF7E8", color: "#B26A00" },
-};
-
-const TYPE_STYLE = {
-  Credit: { bg: "#E6F7EA", color: "#02981D" },
-  Debit: { bg: "#FDECEC", color: "#DC3545" },
-  BNPL: { bg: "#EEF2FF", color: "#3949AB" },
-};
-
-const METHOD_OPTIONS = [
-  "Bank Transfer",
-  "Card Payment",
-  "Online Payment",
-  "Buy Now Pay Later",
-];
-
-const TAB_TYPE = ["", "Credit", "Debit", "BNPL"]; // index → API "type" param
-
 const mapApiPayment = (t) => ({
-  id: t?.id || t?.reference || "—",
-  date: t?.created_at || t?.date || "—",
-  type:
-    t?.type ||
-    (t?.direction === "credit"
-      ? "Credit"
-      : t?.direction === "debit"
-      ? "Debit"
-      : t?.is_bnpl
-      ? "BNPL"
-      : "Credit"),
+  id: t?.id || "—",
+  date: t?.date_time || t?.created_at || t?.date || null,
+  type: t?.type || "—",
   amount: Number(t?.amount || 0),
   method: t?.payment_method || t?.method || "—",
-  merchant: t?.merchant_name || t?.merchant || t?.origin || "—",
+  merchant: t?.merchant || t?.merchant_name || t?.origin || "—",
   customer:
-    t?.customer_name || t?.customer || t?.recipient || t?.account_name || "—",
-  status: t?.status || "Pending",
+    t?.customer || t?.customer_name || t?.recipient || t?.account_name || "—",
+  status: t?.status || "—",
   commission: Number(t?.commission || 0),
-  vat: Number(t?.vat || 0),
 });
 
 const PaymentsDashboard = () => {
@@ -117,9 +125,7 @@ const PaymentsDashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage] = useState(50);
 
-  // The wallet-transactions endpoint only supports search/dates/page/limit
-  // server-side. Tab (type), method, and status filters are applied
-  // client-side over the current page.
+  // GET /transaction/payments/ — server params: page, limit, search, account_name, start_date, end_date
   const apiUrl = transactionsPaymentDataUrl(
     currentPage,
     rowsPerPage,
@@ -128,97 +134,95 @@ const PaymentsDashboard = () => {
     selectedDates
   );
   const { data, isLoading } = useFetchData(
-    ["fetchPayments", apiUrl, currentPage, search],
+    [
+      "fetchPayments",
+      apiUrl,
+      currentPage,
+      search,
+      selectedDates?.startDate,
+      selectedDates?.endDate,
+    ],
     apiUrl
   );
 
   const rows = useMemo(() => {
-    const raw = Array.isArray(data?.data)
-      ? data.data
-      : Array.isArray(data?.transactions?.data)
-      ? data.transactions.data
-      : Array.isArray(data?.results)
-      ? data.results
-      : Array.isArray(data)
-      ? data
-      : [];
-    return raw.map(mapApiPayment);
+    const raw =
+      data?.results ||
+      data?.data ||
+      data?.transactions?.data ||
+      (Array.isArray(data) ? data : []);
+    return (Array.isArray(raw) ? raw : []).map(mapApiPayment);
   }, [data]);
 
   const totalPages =
+    data?.pagination?.total_pages ||
     data?.total_pages ||
     data?.pages ||
-    data?.transactions?.total_pages ||
-    Math.max(1, Math.ceil((data?.total || rows.length) / rowsPerPage));
+    Math.max(1, Math.ceil((data?.pagination?.total_count || data?.total || rows.length) / rowsPerPage));
 
+  // Prefer server-side summary (new API shape); compute from rows as a fallback
   const totals = useMemo(() => {
-    // Prefer API-supplied totals; otherwise derive from current page rows
-    const t = data?.totals || {};
+    const s = data?.summary || {};
     const inflow = Number(
-      t.inflow ||
+      s.total_inflow ??
         rows
-          .filter((r) => r.type === "Credit" && r.status === "Successful")
+          .filter((r) => /credit/i.test(r.type) && /success/i.test(r.status))
           .reduce((a, r) => a + r.amount, 0)
     );
     const outflow = Number(
-      t.outflow ||
+      s.total_outflow ??
         rows
-          .filter((r) => r.type === "Debit" && r.status === "Successful")
+          .filter((r) => /debit/i.test(r.type) && /success/i.test(r.status))
           .reduce((a, r) => a + r.amount, 0)
     );
     const commission = Number(
-      t.commission ||
-        t.revenue_profit ||
+      s.total_commission ??
         rows
-          .filter((r) => r.status === "Successful")
+          .filter((r) => /success/i.test(r.status))
           .reduce((a, r) => a + r.commission, 0)
     );
-    const vat = Number(
-      t.vat ||
-        rows
-          .filter((r) => r.status === "Successful")
-          .reduce((a, r) => a + r.vat, 0)
-    );
-    const bnpl = Number(
-      t.bnpl ||
-        rows
-          .filter((r) => r.type === "BNPL" && r.status === "Successful")
-          .reduce((a, r) => a + r.amount, 0)
-    );
-    return { inflow, outflow, net: inflow - outflow, commission, vat, bnpl };
-  }, [rows, data]);
+    const net = Number(s.net_balance ?? inflow - outflow);
+    return { inflow, outflow, commission, net };
+  }, [data, rows]);
 
-  // Apply tab / method / status as client-side filters over the current page
+  // Apply method / status / tab filters CLIENT-SIDE over the current page
+  // (the API doesn't expose these as query params)
+  const TAB_TYPE = ["", "CREDIT", "DEBIT", "BNPL"];
   const filtered = useMemo(() => {
     const tabType = TAB_TYPE[tab];
     return rows.filter((r) => {
-      const matchTab = tabType ? r.type === tabType : true;
+      const matchTab = tabType
+        ? (r.type || "").toString().toUpperCase() === tabType
+        : true;
       const matchMethod =
         methodFilter === "all" ? true : r.method === methodFilter;
       const matchStatus =
-        statusFilter === "all" ? true : r.status === statusFilter;
+        statusFilter === "all"
+          ? true
+          : (r.status || "").toString().toUpperCase() ===
+            statusFilter.toUpperCase();
       return matchTab && matchMethod && matchStatus;
     });
   }, [rows, tab, methodFilter, statusFilter]);
 
   return (
     <div className="w-full flex flex-col gap-6">
-      {/* Header */}
+      {/* Header with date range filter */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="text-[20px] md:text-[22px] font-semibold text-general">
             Payments & Transactions
           </h1>
           <p className="text-[13px] text-primary_grey_2 mt-1">
-            Standardized financial dashboard with full BNPL, VAT, and
-            commission visibility.
+            Inflow, outflow, commission and BNPL — filter by date range.
           </p>
         </div>
+        <SelectDate />
       </div>
 
-      {/* Top summary cards */}
+      {/* Summary cards from API */}
       <Grid container spacing={2}>
-        <Grid item xs={6} md={4} lg={2}>
+        <Grid item xs={6} md={3}>
           <StatCard
             icon={<InflowIcon fontSize="small" />}
             color="#02981D"
@@ -228,7 +232,7 @@ const PaymentsDashboard = () => {
             subtitle="Money in"
           />
         </Grid>
-        <Grid item xs={6} md={4} lg={2}>
+        <Grid item xs={6} md={3}>
           <StatCard
             icon={<OutflowIcon fontSize="small" />}
             color="#DC3545"
@@ -238,7 +242,7 @@ const PaymentsDashboard = () => {
             subtitle="Money out"
           />
         </Grid>
-        <Grid item xs={6} md={4} lg={2}>
+        <Grid item xs={6} md={3}>
           <StatCard
             icon={<BalanceIcon fontSize="small" />}
             color="#0369A1"
@@ -248,7 +252,7 @@ const PaymentsDashboard = () => {
             subtitle="Inflow − Outflow"
           />
         </Grid>
-        <Grid item xs={6} md={4} lg={2}>
+        <Grid item xs={6} md={3}>
           <StatCard
             icon={<CommissionIcon fontSize="small" />}
             color="#B26A00"
@@ -258,29 +262,9 @@ const PaymentsDashboard = () => {
             subtitle="Platform revenue"
           />
         </Grid>
-        <Grid item xs={6} md={4} lg={2}>
-          <StatCard
-            icon={<VatIcon fontSize="small" />}
-            color="#7C3AED"
-            bg="#F3E8FF"
-            label="VAT Collected"
-            value={<FormattedPrice amount={totals.vat} />}
-            subtitle="Withheld for tax"
-          />
-        </Grid>
-        <Grid item xs={6} md={4} lg={2}>
-          <StatCard
-            icon={<BnplIcon fontSize="small" />}
-            color="#3949AB"
-            bg="#EEF2FF"
-            label="Buy Now Pay Later"
-            value={<FormattedPrice amount={totals.bnpl} />}
-            subtitle="Outstanding BNPL"
-          />
-        </Grid>
       </Grid>
 
-      {/* Main */}
+      {/* Main card */}
       <Card
         sx={{
           borderRadius: "14px",
@@ -347,11 +331,10 @@ const PaymentsDashboard = () => {
                 sx={{ minWidth: 170 }}
               >
                 <MenuItem value="all">All Methods</MenuItem>
-                {METHOD_OPTIONS.map((m) => (
-                  <MenuItem key={m} value={m}>
-                    {m}
-                  </MenuItem>
-                ))}
+                <MenuItem value="Bank Transfer">Bank Transfer</MenuItem>
+                <MenuItem value="Card Payment">Card Payment</MenuItem>
+                <MenuItem value="Online Payment">Online Payment</MenuItem>
+                <MenuItem value="Buy Now Pay Later">Buy Now Pay Later</MenuItem>
               </Select>
               <Select
                 size="small"
@@ -363,9 +346,9 @@ const PaymentsDashboard = () => {
                 sx={{ minWidth: 140 }}
               >
                 <MenuItem value="all">All Status</MenuItem>
-                <MenuItem value="Successful">Successful</MenuItem>
-                <MenuItem value="Failed">Failed</MenuItem>
-                <MenuItem value="Pending">Pending</MenuItem>
+                <MenuItem value="SUCCESS">Success</MenuItem>
+                <MenuItem value="FAILED">Failed</MenuItem>
+                <MenuItem value="PENDING">Pending</MenuItem>
               </Select>
             </div>
           </div>
@@ -404,64 +387,62 @@ const PaymentsDashboard = () => {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((t) => (
-                    <tr
-                      key={t.id}
-                      onClick={() => setSelected(t)}
-                      className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA] cursor-pointer"
-                    >
-                      <td className="py-4 px-3 text-[13px] font-medium text-general">
-                        {t.id}
-                      </td>
-                      <td className="py-4 px-3 text-[12px] text-primary_grey_2">
-                        {t.date}
-                      </td>
-                      <td className="py-4 px-3">
-                        <span
-                          className="text-[12px] font-medium px-2 py-1 rounded-md"
-                          style={{
-                            background: TYPE_STYLE[t.type]?.bg,
-                            color: TYPE_STYLE[t.type]?.color,
-                          }}
-                        >
-                          {t.type}
-                        </span>
-                      </td>
-                      <td className="py-4 px-3 text-[13px] text-general text-right font-medium">
-                        <FormattedPrice amount={t.amount} />
-                      </td>
-                      <td className="py-4 px-3 text-[12px] text-general">
-                        {t.method}
-                      </td>
-                      <td className="py-4 px-3 text-[13px] text-general">
-                        {t.merchant}
-                      </td>
-                      <td className="py-4 px-3 text-[13px] text-general">
-                        {t.customer}
-                      </td>
-                      <td className="py-4 px-3 text-[12px] text-general text-right">
-                        {t.commission ? (
-                          <FormattedPrice amount={t.commission} />
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="py-4 px-3">
-                        <span
-                          className="text-[12px] font-medium px-3 py-1 rounded-full"
-                          style={{
-                            background: STATUS_STYLE[t.status]?.bg,
-                            color: STATUS_STYLE[t.status]?.color,
-                          }}
-                        >
-                          {t.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-3 text-right">
-                        <ChevronRightIcon sx={{ color: "#5E5E5E" }} />
-                      </td>
-                    </tr>
-                  ))
+                  filtered.map((t) => {
+                    const ts = typeStyle(t.type);
+                    const ss = statusStyle(t.status);
+                    return (
+                      <tr
+                        key={t.id}
+                        onClick={() => setSelected(t)}
+                        className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA] cursor-pointer"
+                      >
+                        <td className="py-4 px-3 text-[13px] font-medium text-general font-mono">
+                          {t.id}
+                        </td>
+                        <td className="py-4 px-3 text-[12px] text-primary_grey_2 whitespace-nowrap">
+                          {fmtDate(t.date)}
+                        </td>
+                        <td className="py-4 px-3">
+                          <span
+                            className="text-[12px] font-semibold px-2 py-1 rounded-md capitalize"
+                            style={{ background: ts.bg, color: ts.color }}
+                          >
+                            {t.type.toString().toLowerCase()}
+                          </span>
+                        </td>
+                        <td className="py-4 px-3 text-[13px] text-general text-right font-medium">
+                          <FormattedPrice amount={t.amount} />
+                        </td>
+                        <td className="py-4 px-3 text-[12px] text-general">
+                          {t.method}
+                        </td>
+                        <td className="py-4 px-3 text-[13px] text-general">
+                          {t.merchant}
+                        </td>
+                        <td className="py-4 px-3 text-[13px] text-general">
+                          {t.customer}
+                        </td>
+                        <td className="py-4 px-3 text-[12px] text-general text-right">
+                          {t.commission ? (
+                            <FormattedPrice amount={t.commission} />
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="py-4 px-3">
+                          <span
+                            className="text-[12px] font-medium px-3 py-1 rounded-full"
+                            style={{ background: ss.bg, color: ss.color }}
+                          >
+                            {ss.label}
+                          </span>
+                        </td>
+                        <td className="py-4 px-3 text-right">
+                          <ChevronRightIcon sx={{ color: "#5E5E5E" }} />
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -478,54 +459,52 @@ const PaymentsDashboard = () => {
 
           {/* Mobile cards */}
           <div className="md:hidden flex flex-col gap-3">
-            {filtered.map((t) => (
-              <div
-                key={t.id}
-                onClick={() => setSelected(t)}
-                className="border border-[#EFEFEF] rounded-xl p-4 active:bg-[#FAFAFA]"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-[13px] font-medium text-general">
-                      {t.id}
-                    </p>
-                    <p className="text-[11px] text-primary_grey_2 mt-0.5">
-                      {t.date}
-                    </p>
+            {filtered.map((t) => {
+              const ts = typeStyle(t.type);
+              const ss = statusStyle(t.status);
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => setSelected(t)}
+                  className="border border-[#EFEFEF] rounded-xl p-4 active:bg-[#FAFAFA]"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[13px] font-medium text-general font-mono">
+                        {t.id}
+                      </p>
+                      <p className="text-[11px] text-primary_grey_2 mt-0.5">
+                        {fmtDate(t.date)}
+                      </p>
+                    </div>
+                    <span
+                      className="text-[12px] font-medium px-3 py-1 rounded-full"
+                      style={{ background: ss.bg, color: ss.color }}
+                    >
+                      {ss.label}
+                    </span>
                   </div>
-                  <span
-                    className="text-[12px] font-medium px-3 py-1 rounded-full"
-                    style={{
-                      background: STATUS_STYLE[t.status]?.bg,
-                      color: STATUS_STYLE[t.status]?.color,
-                    }}
-                  >
-                    {t.status}
-                  </span>
+                  <Divider sx={{ my: 1.5 }} />
+                  <div className="flex items-center justify-between">
+                    <span
+                      className="text-[12px] font-semibold px-2 py-1 rounded-md capitalize"
+                      style={{ background: ts.bg, color: ts.color }}
+                    >
+                      {t.type.toString().toLowerCase()}
+                    </span>
+                    <span className="text-[14px] font-semibold text-general">
+                      <FormattedPrice amount={t.amount} />
+                    </span>
+                  </div>
+                  <div className="mt-2 text-[12px] text-primary_grey_2">
+                    {t.merchant} → {t.customer}
+                  </div>
+                  <div className="mt-1 text-[12px] text-primary_grey_2">
+                    {t.method}
+                  </div>
                 </div>
-                <Divider sx={{ my: 1.5 }} />
-                <div className="flex items-center justify-between">
-                  <span
-                    className="text-[12px] font-medium px-2 py-1 rounded-md"
-                    style={{
-                      background: TYPE_STYLE[t.type]?.bg,
-                      color: TYPE_STYLE[t.type]?.color,
-                    }}
-                  >
-                    {t.type}
-                  </span>
-                  <span className="text-[14px] font-semibold text-general">
-                    <FormattedPrice amount={t.amount} />
-                  </span>
-                </div>
-                <div className="mt-2 text-[12px] text-primary_grey_2">
-                  {t.merchant} → {t.customer}
-                </div>
-                <div className="mt-1 text-[12px] text-primary_grey_2">
-                  {t.method}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -550,8 +529,20 @@ const PaymentsDashboard = () => {
             <div className="border border-[#EFEFEF] rounded-xl p-4">
               {[
                 ["Transaction ID", selected.id],
-                ["Date & Time", selected.date],
-                ["Type", selected.type],
+                ["Date & Time", fmtDate(selected.date)],
+                [
+                  "Type",
+                  <span
+                    key="t"
+                    className="text-[12px] font-semibold px-2 py-1 rounded-md capitalize"
+                    style={{
+                      background: typeStyle(selected.type).bg,
+                      color: typeStyle(selected.type).color,
+                    }}
+                  >
+                    {selected.type.toString().toLowerCase()}
+                  </span>,
+                ],
                 [
                   "Amount",
                   <FormattedPrice key="a" amount={selected.amount} />,
@@ -568,14 +559,18 @@ const PaymentsDashboard = () => {
                   ),
                 ],
                 [
-                  "VAT",
-                  selected.vat ? (
-                    <FormattedPrice key="v" amount={selected.vat} />
-                  ) : (
-                    "—"
-                  ),
+                  "Status",
+                  <span
+                    key="s"
+                    className="text-[12px] font-medium px-3 py-1 rounded-full"
+                    style={{
+                      background: statusStyle(selected.status).bg,
+                      color: statusStyle(selected.status).color,
+                    }}
+                  >
+                    {statusStyle(selected.status).label}
+                  </span>,
                 ],
-                ["Status", selected.status],
               ].map(([label, value], i, arr) => (
                 <div key={label}>
                   <div className="flex items-center justify-between py-2 gap-3">

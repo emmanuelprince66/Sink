@@ -174,7 +174,7 @@ const UserProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState(0);
-  const [outlet, setOutlet] = useState("all");
+  const [outlet, setOutlet] = useState("");
 
   const apiUrl = membersProfileUrl(id);
   const { data, isLoading } = useFetchData(
@@ -334,27 +334,127 @@ const UserProfile = () => {
         </div>
       </div>
 
-      {/* Outlet filter (only for businesses with > 1 outlet) */}
-      {user.outlets && user.outlets.length > 1 && (
-        <div className="flex items-center gap-3 bg-[#F8F9FB] border border-[#EFEFEF] rounded-xl px-3 py-2">
-          <span className="text-[12px] uppercase tracking-wide text-primary_grey_2 font-semibold">
-            Outlet
-          </span>
-          <Select
-            size="small"
-            value={outlet}
-            onChange={(e) => setOutlet(e.target.value)}
-            sx={{ minWidth: 220, background: "#fff" }}
-          >
-            <MenuItem value="all">All Outlets ({user.outlets.length})</MenuItem>
-            {user.outlets.map((o) => (
-              <MenuItem key={o.id} value={o.id}>
-                {o.name} — {o.location}
+      {/* Outlets — dropdown + selected outlet detail card (always visible) */}
+      <Card
+        sx={{
+          borderRadius: "14px",
+          boxShadow: "0 1px 3px rgba(16,24,40,.06)",
+          border: "1px solid #EFEFEF",
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <div>
+              <p className="text-[15px] font-semibold text-general">
+                Business Outlets
+              </p>
+              <p className="text-[12px] text-primary_grey_2 mt-0.5">
+                {(user.outlets || []).length} outlet
+                {(user.outlets || []).length === 1 ? "" : "s"} registered
+              </p>
+            </div>
+            <Select
+              size="small"
+              displayEmpty
+              value={outlet}
+              onChange={(e) => setOutlet(e.target.value)}
+              disabled={!user.outlets || user.outlets.length === 0}
+              sx={{ minWidth: 260, background: "#fff" }}
+            >
+              <MenuItem value="">
+                {user.outlets && user.outlets.length > 0
+                  ? "Select an outlet to view details"
+                  : "No outlets registered"}
               </MenuItem>
-            ))}
-          </Select>
-        </div>
-      )}
+              {(user.outlets || []).map((o) => (
+                <MenuItem key={o.id} value={o.id}>
+                  {o.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </div>
+
+          {(() => {
+            if (!user.outlets || user.outlets.length === 0) {
+              return (
+                <div className="border border-dashed border-[#E3E3E3] rounded-xl p-6 text-center">
+                  <p className="text-[13px] text-primary_grey_2">
+                    This user has not registered any business outlet yet.
+                  </p>
+                </div>
+              );
+            }
+            const selected = user.outlets.find((o) => o.id === outlet);
+            if (!selected) {
+              return (
+                <div className="border border-dashed border-[#E3E3E3] rounded-xl p-6 text-center">
+                  <p className="text-[13px] text-primary_grey_2">
+                    Pick an outlet from the dropdown to view its details.
+                  </p>
+                </div>
+              );
+            }
+              return (
+                <div className="border border-[#EFEFEF] rounded-xl p-4">
+                  <div className="flex items-start gap-4">
+                    {selected.logo ? (
+                      <img
+                        src={selected.logo}
+                        alt={selected.name}
+                        className="h-16 w-16 rounded-xl object-cover border border-[#EFEFEF] flex-none"
+                      />
+                    ) : (
+                      <div className="h-16 w-16 rounded-xl bg-[#F6FFF8] text-[#02981D] flex items-center justify-center text-[18px] font-semibold flex-none">
+                        {selected.name?.[0]?.toUpperCase() || "O"}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <p className="text-[16px] font-semibold text-general">
+                          {selected.name}
+                        </p>
+                        <span
+                          className="text-[11px] font-semibold px-2 py-1 rounded-full"
+                          style={{
+                            background:
+                              selected.isActive === false
+                                ? "#FDECEC"
+                                : "#E6F7EA",
+                            color:
+                              selected.isActive === false
+                                ? "#DC3545"
+                                : "#02981D",
+                          }}
+                        >
+                          {selected.isActive === false ? "Inactive" : "Active"}
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-primary_grey_2 mt-1">
+                        {selected.location}
+                      </p>
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+                        <div className="flex justify-between gap-2">
+                          <span className="text-primary_grey_2">Outlet ID</span>
+                          <span className="text-general font-medium truncate">
+                            {selected.id}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="text-primary_grey_2">
+                            Owner
+                          </span>
+                          <span className="text-general font-medium truncate">
+                            {user.name}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
 
       {/* Financial overview tiles */}
       <Grid container spacing={2}>
@@ -599,7 +699,7 @@ const UserProfile = () => {
                         colSpan={6}
                         className="py-10 text-center text-primary_grey_2"
                       >
-                        No payment transactions for this outlet selection.
+                        No recent payment transactions.
                       </td>
                     </tr>
                   ) : (

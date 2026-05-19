@@ -4,11 +4,12 @@ const buildQuery = (params) => {
   const qs = Object.entries(params || {})
     .filter(([, v]) => {
       if (v === null || v === undefined) return false;
-      if (typeof v === "string" && (v === "" || v === "undefined")) return false;
+      if (typeof v === "string" && (v === "" || v === "undefined"))
+        return false;
       return true;
     })
     .map(
-      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`
+      ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`,
     )
     .join("&");
   return qs ? `?${qs}` : "";
@@ -18,7 +19,7 @@ export const allMembersUrl = (
   currentPage,
   rowsPerPage,
   planValue,
-  searchValue
+  searchValue,
 ) =>
   `/merchant/users/${buildQuery({
     page: currentPage,
@@ -62,7 +63,7 @@ export const loanRequestsDataUrl = (
   currentPage,
   rowsPerPage,
   searchValue,
-  filterValue
+  filterValue,
 ) => {
   return `/admin/loan_overview/?page=${currentPage}&limit=${rowsPerPage}&search=${searchValue}&status=${filterValue}`;
 };
@@ -70,7 +71,7 @@ export const transactionsDataUrl = (
   currentPage,
   rowsPerPage,
   searchValue,
-  trxFilter
+  trxFilter,
 ) => {
   return `/transaction/all/?page=${currentPage}&limit=${rowsPerPage}&search=${searchValue}&type=${
     trxFilter || "SUBSCRIPTION"
@@ -84,7 +85,7 @@ export const transactionsPaymentDataUrl = (
   searchValue,
   // eslint-disable-next-line no-unused-vars
   _trxFilter,
-  selectedDates
+  selectedDates,
 ) =>
   `/transaction/payments/${buildQuery({
     page: currentPage,
@@ -102,7 +103,7 @@ export const transactionsSubscriptionDataUrl = (
   searchValue,
   // eslint-disable-next-line no-unused-vars
   _trxFilter,
-  selectedDates
+  selectedDates,
 ) =>
   `/transaction/subscriptions/${buildQuery({
     page: currentPage,
@@ -118,7 +119,7 @@ export const transactionsMarketAutomationDataUrl = (
   searchValue,
   // eslint-disable-next-line no-unused-vars
   _trxFilter,
-  selectedDates
+  selectedDates,
 ) =>
   `/transaction/market_automation/${buildQuery({
     page: currentPage,
@@ -135,7 +136,7 @@ export const transactionsCampaignUnitDataUrl = (
   rowsPerPage,
   searchValue,
   unitType,
-  selectedDates
+  selectedDates,
 ) =>
   `/transaction/campaign-overview/${buildQuery({
     page: currentPage,
@@ -158,7 +159,7 @@ export const referralDataUrl = (
   searchValue,
   currentPage,
   rowsPerPage,
-  selectedDates
+  selectedDates,
 ) => {
   return `/admin/referals?searchValue=${searchValue}&page=${currentPage}&limit=${rowsPerPage}&start_date=${selectedDates?.startDate}&end_date=${selectedDates?.endDate}`;
 };
@@ -190,7 +191,7 @@ export const investmentInvestorUrl = (id) => {
 export const usersPendingDividendUrl = (
   searchValue,
   rowsPerPage,
-  currentPage
+  currentPage,
 ) => {
   return `/admin/outsanding_dividends/?page=${currentPage}&limit=${rowsPerPage}&search=${searchValue}`;
 };
@@ -204,7 +205,7 @@ export const merchantSubscriptionsUrl = (
   currentPage,
   rowsPerPage,
   searchValue,
-  selectedDates
+  selectedDates,
 ) =>
   `/plans/subscribers/${buildQuery({
     page: currentPage,
@@ -217,12 +218,7 @@ export const merchantSubscriptionsUrl = (
 // ─────────── Payments / Transactions list ───────────
 // NOTE: /transaction/all/ only accepts type (enum: SUBSCRIPTION|REFERRAL),
 // page, limit, search — no status / method / date filters server-side.
-export const paymentsListUrl = (
-  currentPage,
-  rowsPerPage,
-  searchValue,
-  type
-) =>
+export const paymentsListUrl = (currentPage, rowsPerPage, searchValue, type) =>
   `/transaction/all/${buildQuery({
     page: currentPage,
     limit: rowsPerPage,
@@ -250,7 +246,7 @@ export const walletAccountsUrl = (
   currentPage,
   rowsPerPage,
   searchValue,
-  filters
+  filters,
 ) =>
   `/profile/wallet-accounts/${buildQuery({
     page: currentPage,
