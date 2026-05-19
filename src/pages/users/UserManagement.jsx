@@ -344,8 +344,12 @@ const UserManagement = () => {
                       onClick={() => navigate(`/users/${u.id}`)}
                       className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA] cursor-pointer"
                     >
-                      <td className="py-4 px-3 text-[12px] font-medium text-general">
-                        {u.id}
+                      <td className="py-4 px-3 text-[12px] font-medium text-general font-mono whitespace-nowrap">
+                        <span title={u.id}>
+                          {typeof u.id === "string" && u.id.length > 8
+                            ? `${u.id.slice(0, 8)}…`
+                            : u.id}
+                        </span>
                       </td>
                       <td className="py-4 px-3">
                         <p className="text-[13px] font-medium text-general">
@@ -411,7 +415,10 @@ const UserManagement = () => {
                       {u.name}
                     </p>
                     <p className="text-[11px] text-primary_grey_2">
-                      {u.id} · {u.type}
+                      {typeof u.id === "string" && u.id.length > 8
+                        ? `${u.id.slice(0, 8)}…`
+                        : u.id}{" "}
+                      · {u.type}
                     </p>
                   </div>
                   <StatusPill status={u.status} />

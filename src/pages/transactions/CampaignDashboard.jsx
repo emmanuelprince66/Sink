@@ -15,7 +15,6 @@ import {
   PaidOutlined as PaidIcon,
   AccountBalanceWalletOutlined as WalletIcon,
 } from "@mui/icons-material";
-import SelectDate from "../../components/SelectDate";
 import CustomPagination from "../../components/CustomPagination";
 import FormattedPrice from "../../utils/FormattedPrice";
 import { transactionsCampaignUnitDataUrl } from "../../api/endpoint";
@@ -117,19 +116,9 @@ const CampaignDashboard = () => {
 
   return (
     <div className="w-full flex flex-col gap-6">
-      {/* Header + date range */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h2 className="text-[18px] font-semibold text-general">
-            Campaign Overview
-          </h2>
-          <p className="text-[13px] text-primary_grey_2 mt-1">
-            Funding inflow and outstanding credit liability across all
-            campaigns.
-          </p>
-        </div>
-        <SelectDate />
-      </div>
+      <p className="text-[13px] text-primary_grey_2">
+        Funding inflow and outstanding credit liability across all campaigns.
+      </p>
 
       {/* Summary cards (driven by API) */}
       <Grid container spacing={2}>

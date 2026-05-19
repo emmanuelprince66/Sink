@@ -146,7 +146,7 @@ const useModalState = () => {
 // Components
 const TransactionHeader = ({ onDateChange }) => (
   <div className="w-full flex items-center justify-between mb-2">
-    <h1 className="font-semibold text-xl text-gray-900">Transactions</h1>
+    <h1 className="font-semibold text-xl text-gray-900">Campaign</h1>
     <SelectDate onChange={onDateChange} />
   </div>
 );
