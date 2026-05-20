@@ -385,11 +385,10 @@ const SubscriptionManagement = () => {
       toast.error(err?.response?.data?.message || "Failed to delete plan"),
   });
 
+  // Prefer the API's `summary` block; fall back to derivation from rows
   const totals = useMemo(() => {
-    // Derive what we can from the on-page data. API doesn't expose
-    // per-plan subscriber counts or revenue, so these come from subscribers /
-    // subscription-transactions where available.
-    const subRevenue = subTrx
+    const s = subTrxData?.summary || {};
+    const fallbackRevenue = subTrx
       .filter((t) => t.status === "Successful")
       .reduce((a, t) => a + (t.amount || 0), 0);
     const failedTrx = subTrx.filter(
@@ -397,16 +396,22 @@ const SubscriptionManagement = () => {
     );
     return {
       plans: plans.length,
-      subscribers:
-        subsData?.total ||
-        subsData?.count ||
-        (Array.isArray(subscribers) ? subscribers.length : 0),
-      revenueMTD: subRevenue,
-      mrr: subRevenue,
-      failedRenewals: failedTrx.reduce((a, t) => a + (t.amount || 0), 0),
-      failedCount: failedTrx.length,
+      subscribers: Number(
+        s.active_subscriptions ??
+          subsData?.total ??
+          subsData?.count ??
+          (Array.isArray(subscribers) ? subscribers.length : 0)
+      ),
+      revenueMTD: Number(s.total_revenue ?? fallbackRevenue),
+      mrr: Number(s.mrr ?? fallbackRevenue),
+      // API gives `failed_renewals` as a COUNT, not amount
+      failedCount: Number(s.failed_renewals ?? failedTrx.length),
+      failedRenewals:
+        s.failed_renewals !== undefined
+          ? null // API only gives count, no ₦ amount
+          : failedTrx.reduce((a, t) => a + (t.amount || 0), 0),
     };
-  }, [plans, subTrx, subsData, subscribers]);
+  }, [plans, subTrx, subTrxData, subsData, subscribers]);
 
   const filteredSubTrx = useMemo(() => {
     return subTrx.filter((t) => {
@@ -544,12 +549,16 @@ const SubscriptionManagement = () => {
             bg="#FDECEC"
             label="Failed Renewals"
             value={
-              <span>
-                <FormattedPrice amount={totals.failedRenewals} />
-                <span className="text-[12px] text-primary_grey_2 font-normal ml-1">
-                  · {totals.failedCount}
+              totals.failedRenewals !== null ? (
+                <span>
+                  <FormattedPrice amount={totals.failedRenewals} />
+                  <span className="text-[12px] text-primary_grey_2 font-normal ml-1">
+                    · {totals.failedCount}
+                  </span>
                 </span>
-              </span>
+              ) : (
+                totals.failedCount.toLocaleString()
+              )
             }
             subtitle="Needs follow-up"
           />
@@ -916,8 +925,9 @@ const SubscriptionManagement = () => {
                     Math.max(
                       1,
                       Math.ceil(
-                        (subTrxData?.total || filteredSubTrx.length) /
-                          rowsPerPage
+                        (subTrxData?.total_records ||
+                          subTrxData?.total ||
+                          filteredSubTrx.length) / rowsPerPage
                       )
                     )
                   }

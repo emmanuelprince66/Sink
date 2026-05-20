@@ -1,5 +1,11 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  CheckCircleOutline as ActiveIcon,
+  ChevronRightRounded as ChevronRightIcon,
+  HourglassEmpty as PendingIcon,
+  PeopleAltOutlined as PeopleIcon,
+  SearchOutlined as SearchIcon,
+  PauseCircleOutline as SuspendedIcon,
+} from "@mui/icons-material";
 import {
   Card,
   CardContent,
@@ -11,19 +17,13 @@ import {
   Select,
   TextField,
 } from "@mui/material";
-import {
-  SearchOutlined as SearchIcon,
-  PeopleAltOutlined as PeopleIcon,
-  CheckCircleOutline as ActiveIcon,
-  PauseCircleOutline as SuspendedIcon,
-  HourglassEmpty as PendingIcon,
-  ChevronRightRounded as ChevronRightIcon,
-} from "@mui/icons-material";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { allMembersUrl } from "../../api/endpoint";
+import CustomPagination from "../../components/CustomPagination";
+import useFetchData from "../../hooks/useFetchData";
 import FormattedPrice from "../../utils/FormattedPrice";
 import { findPlan } from "./userData";
-import { allMembersUrl } from "../../api/endpoint";
-import useFetchData from "../../hooks/useFetchData";
-import CustomPagination from "../../components/CustomPagination";
 
 const STATUS_STYLE = {
   active: { bg: "#E6F7EA", color: "#02981D", label: "Active" },
@@ -47,15 +47,22 @@ const StatusPill = ({ status }) => {
   );
 };
 
+// Render the subscription string as a colored badge.
+// Tries to match a known local plan for styling, falls back to a generic
+// green pill for any non-empty API value (FREE, SYNC-PRO, SYNC-GROWTH, etc.)
 const PlanBadge = ({ plan }) => {
+  if (!plan || plan === "—" || plan === "N/A") {
+    return <span className="text-[12px] text-primary_grey_2">—</span>;
+  }
   const p = findPlan(plan);
-  if (!p) return <span className="text-[12px] text-primary_grey_2">—</span>;
+  const bg = p?.bg || "#F6FFF8";
+  const color = p?.color || "#02981D";
   return (
     <span
       className="text-[12px] font-semibold px-2 py-1 rounded-md whitespace-nowrap"
-      style={{ background: p.bg, color: p.color }}
+      style={{ background: bg, color }}
     >
-      {p.name}
+      {p?.name || plan}
     </span>
   );
 };
@@ -103,7 +110,7 @@ const mapApiUser = (u) => {
     type,
     email: u?.email || "—",
     phone: u?.phone || "—",
-    plan: subscription, // e.g. "FREE", "SYNC-GROWTH", "N/A"
+    plan: u?.subscription || "—", // e.g. "FREE", "SYNC-GROWTH", "N/A"
     status: u?.is_active === false ? "inactive" : "active",
     tier: u?.tier || "—", // already a string like "Tier 1"
     totalTransactions: Number(u?.total_transactions || 0), // amount in ₦
@@ -116,7 +123,6 @@ const mapApiUser = (u) => {
     raw: u,
   };
 };
-
 
 const UserManagement = () => {
   const navigate = useNavigate();
@@ -131,21 +137,21 @@ const UserManagement = () => {
     currentPage,
     rowsPerPage,
     planFilter === "all" ? "ALL" : planFilter,
-    search
+    search,
   );
   const { data, isLoading } = useFetchData(
     ["fetchMerchantUsers", apiUrl],
-    apiUrl
+    apiUrl,
   );
 
   const users = useMemo(() => {
     const raw = Array.isArray(data?.data)
       ? data.data
       : Array.isArray(data?.results)
-      ? data.results
-      : Array.isArray(data)
-      ? data
-      : [];
+        ? data.results
+        : Array.isArray(data)
+          ? data
+          : [];
     return raw.map(mapApiUser);
   }, [data]);
 
@@ -395,7 +401,10 @@ const UserManagement = () => {
               totalPages={
                 data?.total_pages ||
                 data?.pages ||
-                Math.max(1, Math.ceil((data?.total || filtered.length) / rowsPerPage))
+                Math.max(
+                  1,
+                  Math.ceil((data?.total || filtered.length) / rowsPerPage),
+                )
               }
               onPageChange={setCurrentPage}
             />
