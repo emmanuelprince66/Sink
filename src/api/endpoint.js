@@ -28,6 +28,25 @@ export const allMembersUrl = (
     search: searchValue,
   })}`;
 
+// GET /merchant/activity/ — User Activity Monitoring
+// period: "today" | "last_7_days" | "last_30_days" | "last_90_days" | "custom"
+// status_filter: "All" | "Active" | "Inactive" | "Dormant" | "Churned"
+export const merchantActivityUrl = (
+  currentPage,
+  pageSize,
+  period,
+  statusFilter,
+  selectedDates,
+) =>
+  `/merchant/activity/${buildQuery({
+    page: currentPage,
+    page_size: pageSize,
+    period,
+    status_filter: statusFilter,
+    start_date: period === "custom" ? selectedDates?.startDate : undefined,
+    end_date: period === "custom" ? selectedDates?.endDate : undefined,
+  })}`;
+
 // GET /profile/profile/ — Profile Overview (per swagger)
 export const overveiwUrl = (selectedDates) =>
   `/profile/profile/${buildQuery({
