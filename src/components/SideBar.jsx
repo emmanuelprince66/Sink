@@ -108,11 +108,12 @@ const SideBar = () => {
             />
           ),
         },
-        {
-          name: "Notifications",
-          link: "notifications",
-          icon: (active) => <Ssix color={active ? "white" : "#5E5E5E"} />,
-        },
+        // Notifications hidden for now
+        // {
+        //   name: "Notifications",
+        //   link: "notifications",
+        //   icon: (active) => <Ssix color={active ? "white" : "#5E5E5E"} />,
+        // },
       ],
     },
     {

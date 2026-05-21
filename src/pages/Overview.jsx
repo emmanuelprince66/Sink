@@ -113,13 +113,13 @@ const Overview = () => {
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">All-time:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  <FormattedPrice amount={data?.total_savings} />
+                  {Number(data?.total_sales || 0).toLocaleString()}
                 </p>
               </div>
               <div className="flex-col flex items-start gap-2 mt-5">
                 <p className="text-[14px] text-primary_grey_2">By Filter:</p>
                 <p className="text-[24px] font-[600] text-general">
-                  <FormattedPrice amount={data?.filtered_savings_sum} />
+                  {Number(data?.filtered_sales || 0).toLocaleString()}
                 </p>
               </div>
             </div>
