@@ -287,6 +287,7 @@ const SubscriptionManagement = () => {
     subsSearch,
     selectedDates
   );
+  // Only fetch the subscribers list when the Subscribers tab (1) is active
   const { data: subsData, isLoading: subsLoading } = useFetchData(
     [
       "fetchMerchantSubs",
@@ -296,26 +297,36 @@ const SubscriptionManagement = () => {
       selectedDates?.startDate,
       selectedDates?.endDate,
     ],
-    subsApi
+    subsApi,
+    { enabled: tab === 1 }
   );
 
+  // Push status / cycle / tx_type filters server-side (API defaults each to "All")
   const subTrxApi = transactionsSubscriptionDataUrl(
     subTrxPage,
     rowsPerPage,
     "",
-    typeFilter === "all" ? "" : typeFilter,
-    selectedDates
+    typeFilter === "all" ? "All" : typeFilter,
+    selectedDates,
+    {
+      status: statusFilter === "all" ? "All" : statusFilter,
+      cycle: cycleFilter === "all" ? "All" : cycleFilter,
+    }
   );
+  // Only fetch subscription transactions when the Sub Transactions tab (2) is active
   const { data: subTrxData, isLoading: subTrxLoading } = useFetchData(
     [
       "fetchSubTrx",
       subTrxApi,
       typeFilter,
+      statusFilter,
+      cycleFilter,
       subTrxPage,
       selectedDates?.startDate,
       selectedDates?.endDate,
     ],
-    subTrxApi
+    subTrxApi,
+    { enabled: tab === 2 }
   );
 
   const plans = useMemo(() => {
@@ -398,6 +409,7 @@ const SubscriptionManagement = () => {
       plans: plans.length,
       subscribers: Number(
         s.active_subscriptions ??
+          subsData?.pagination?.total_count ??
           subsData?.total ??
           subsData?.count ??
           (Array.isArray(subscribers) ? subscribers.length : 0)
@@ -413,16 +425,8 @@ const SubscriptionManagement = () => {
     };
   }, [plans, subTrx, subTrxData, subsData, subscribers]);
 
-  const filteredSubTrx = useMemo(() => {
-    return subTrx.filter((t) => {
-      const matchStatus =
-        statusFilter === "all" ? true : t.status === statusFilter;
-      const matchCycle =
-        cycleFilter === "all" ? true : t.cycle === cycleFilter;
-      const matchType = typeFilter === "all" ? true : t.type === typeFilter;
-      return matchStatus && matchCycle && matchType;
-    });
-  }, [subTrx, statusFilter, cycleFilter, typeFilter]);
+  // Filters are now pushed to the server — show rows as returned.
+  const filteredSubTrx = subTrx;
 
   const openCreate = () => {
     setEditing(null);
@@ -668,7 +672,10 @@ const SubscriptionManagement = () => {
                         color: "#5E5E5E",
                       };
                       const displayName =
+                        u?.full_name ||
+                        u?.business_name ||
                         u?.name ||
+                        u?.owner_name ||
                         [u?.firstname, u?.lastname]
                           .filter(Boolean)
                           .join(" ") ||
@@ -730,12 +737,15 @@ const SubscriptionManagement = () => {
                 <CustomPagination
                   currentPage={subsPage}
                   totalPages={
+                    subsData?.pagination?.total_pages ||
                     subsData?.total_pages ||
                     subsData?.pages ||
                     Math.max(
                       1,
                       Math.ceil(
-                        (subsData?.total || subscribers.length) / rowsPerPage
+                        (subsData?.pagination?.total_count ||
+                          subsData?.total ||
+                          subscribers.length) / rowsPerPage
                       )
                     )
                   }
@@ -915,17 +925,20 @@ const SubscriptionManagement = () => {
                 </table>
               </div>
 
-              {/* Sub-trx pagination */}
+              {/* Sub-trx pagination — API uses pagination.total_records */}
               {!subTrxLoading && filteredSubTrx.length > 0 && (
                 <CustomPagination
                   currentPage={subTrxPage}
                   totalPages={
+                    subTrxData?.pagination?.total_pages ||
                     subTrxData?.total_pages ||
                     subTrxData?.pages ||
                     Math.max(
                       1,
                       Math.ceil(
-                        (subTrxData?.total_records ||
+                        (subTrxData?.pagination?.total_records ||
+                          subTrxData?.total_records ||
+                          subTrxData?.pagination?.total_count ||
                           subTrxData?.total ||
                           filteredSubTrx.length) / rowsPerPage
                       )

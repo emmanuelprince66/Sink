@@ -116,21 +116,26 @@ export const transactionsPaymentDataUrl = (
     search: searchValue,
   })}`;
 
-// /transaction/subscriptions/ — API uses page_size (not limit) and has no `type` param
+// /transaction/subscriptions/ — server-side filters: status, cycle, tx_type (all default "All")
+// Backward-compat: a 5-arg call with `_trxFilter` as the 4th arg still works — that
+// value is sent as `tx_type` (existing callers pass typeFilter there).
 export const transactionsSubscriptionDataUrl = (
   currentPage,
   rowsPerPage,
   searchValue,
-  // eslint-disable-next-line no-unused-vars
-  _trxFilter,
+  txType,
   selectedDates,
+  extraFilters,
 ) =>
   `/transaction/subscriptions/${buildQuery({
     page: currentPage,
     page_size: rowsPerPage,
+    merchant_name: searchValue,
+    tx_type: txType,
+    status: extraFilters?.status,
+    cycle: extraFilters?.cycle,
     start_date: selectedDates?.startDate,
     end_date: selectedDates?.endDate,
-    merchant_name: searchValue,
   })}`;
 
 export const transactionsMarketAutomationDataUrl = (

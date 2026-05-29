@@ -4,8 +4,11 @@ import { AuthAxios } from "../helpers/axiosInstance";
 import { getCookie } from "../utils/cookieAuth";
 import { useQuery } from "@tanstack/react-query";
 
-const useFetchData = (queryKey, apiUrl) => {
+// useFetchData(queryKey, apiUrl)              — fetch immediately (default)
+// useFetchData(queryKey, apiUrl, { enabled }) — fetch only when enabled === true
+const useFetchData = (queryKey, apiUrl, options = {}) => {
   const token = getCookie("authToken");
+  const { enabled = true } = options;
 
   const fetchData = async () => {
     try {
@@ -24,7 +27,8 @@ const useFetchData = (queryKey, apiUrl) => {
     queryKey: queryKey,
     queryFn: fetchData,
     keepPreviousData: true,
-    staleTime: 5000, // Cache data for 5 seconds
+    staleTime: 5000,
+    enabled,
   });
 
   return { data, error, isLoading, refetch };

@@ -23,7 +23,7 @@ const Subscription = ({
   rowsPerPage,
   handleOpenModal,
   page,
-}) => {
+}: any) => {
   console.log("transactionsData", transactionsData);
   return (
     <>
@@ -57,7 +57,7 @@ const Subscription = ({
               ) : transactionsData?.data &&
                 Array.isArray(transactionsData?.data) &&
                 transactionsData?.data?.length > 0 ? (
-                transactionsData?.data?.map((item, i) => (
+                transactionsData?.data?.map((item: any, i: any) => (
                   <TableRow key={item.id}>
                     <TableCell>{page * rowsPerPage + i + 1}</TableCell>
                     <TableCell>
@@ -81,22 +81,22 @@ const Subscription = ({
                             item?.status.toLowerCase() === "failed"
                               ? "#FFF0F0"
                               : item?.status.toLowerCase() === "success"
-                              ? "#EBFFF3"
-                              : item?.status.toLowerCase() === "pending"
-                              ? "#FFF0F0"
-                              : item?.status.toLowerCase() === "processing"
-                              ? "#F4F1FE"
-                              : "",
+                                ? "#EBFFF3"
+                                : item?.status.toLowerCase() === "pending"
+                                  ? "#FFF0F0"
+                                  : item?.status.toLowerCase() === "processing"
+                                    ? "#F4F1FE"
+                                    : "",
                           color:
                             item?.status.toLowerCase() === "failed"
                               ? "#E52929"
                               : item?.status.toLowerCase() === "success"
-                              ? "#1E854A"
-                              : item?.status.toLowerCase() === "pending"
-                              ? "#CDA11E"
-                              : item?.status.toLowerCase() === "processing"
-                              ? "#391E85"
-                              : "",
+                                ? "#1E854A"
+                                : item?.status.toLowerCase() === "pending"
+                                  ? "#CDA11E"
+                                  : item?.status.toLowerCase() === "processing"
+                                    ? "#391E85"
+                                    : "",
                           fontWeight: "500",
                           fontSize: "12px",
                           padding: "4px 8px",
