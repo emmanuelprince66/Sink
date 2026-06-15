@@ -24,6 +24,7 @@ import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
 import MemberProfile from "./pages/members/MemberProfile";
 import PaymentsDashboard from "./pages/payments/PaymentsDashboard";
 import Partners from "./pages/partners/Partners";
+import Referrals from "./pages/referrals/Referrals";
 import Rmerchant from "./pages/r-merchant/Rmerchant";
 import SubscriptionManagement from "./pages/subscriptions/SubscriptionManagement";
 import UserManagement from "./pages/users/UserManagement";
@@ -109,6 +110,11 @@ const RoutesContainer = () => {
       component: <Partners />,
       path: "/partners",
       name: "Partners",
+    },
+    {
+      component: <Referrals />,
+      path: "/referrals",
+      name: "Referrals",
     },
   ];
   return (

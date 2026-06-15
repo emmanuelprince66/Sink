@@ -652,47 +652,49 @@ const SubscriptionManagement = () => {
                       </td>
                     </tr>
                   ) : (
-                    subscribers.map((u) => {
-                      const planName =
-                        u?.subscription || u?.plan || u?.subscription_plan ||
-                        "—";
-                      const planStatus =
-                        u?.subscription_status ||
-                        (u?.subscription_end_date &&
-                        new Date(u.subscription_end_date) < new Date()
-                          ? "expired"
-                          : "active");
+                    subscribers.map((u, idx) => {
+                      // Real API shape:
+                      // { plan, status, started, next_billing,
+                      //   user_business: { name, business, email } }
+                      const ub = u?.user_business || {};
+                      const planName = u?.plan || u?.subscription || "—";
+                      const planStatus = (u?.status || "active").toLowerCase();
                       const statusMap = {
                         active: { bg: "#E6F7EA", color: "#02981D" },
                         trial: { bg: "#FFF7E8", color: "#B26A00" },
                         expired: { bg: "#FDECEC", color: "#DC3545" },
+                        cancelled: { bg: "#FDECEC", color: "#DC3545" },
                       };
                       const s = statusMap[planStatus] || {
                         bg: "#F5F5F5",
                         color: "#5E5E5E",
                       };
                       const displayName =
+                        ub.business ||
+                        ub.name ||
                         u?.full_name ||
-                        u?.business_name ||
                         u?.name ||
-                        u?.owner_name ||
-                        [u?.firstname, u?.lastname]
-                          .filter(Boolean)
-                          .join(" ") ||
-                        u?.business?.[0]?.name ||
                         "—";
+                      const ownerLine = ub.name && ub.business ? ub.name : null;
                       return (
                         <tr
-                          key={u?.id}
-                          className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA] cursor-pointer"
-                          onClick={() => navigate(`/users/${u?.id}`)}
+                          key={u?.id || idx}
+                          className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
                         >
                           <td className="py-4 px-3">
                             <p className="text-[13px] font-medium text-general">
                               {displayName}
                             </p>
                             <p className="text-[12px] text-primary_grey_2">
-                              {u?.email}
+                              {ub.email || u?.email || "—"}
+                              {ownerLine && (
+                                <>
+                                  {" · "}
+                                  <span className="text-general">
+                                    {ownerLine}
+                                  </span>
+                                </>
+                              )}
                             </p>
                           </td>
                           <td className="py-4 px-3">
@@ -715,10 +717,13 @@ const SubscriptionManagement = () => {
                             </span>
                           </td>
                           <td className="py-4 px-3 text-[12px] text-primary_grey_2">
-                            {u?.subscription_start_date || "—"}
+                            {u?.started ||
+                              u?.subscription_start_date ||
+                              "—"}
                           </td>
                           <td className="py-4 px-3 text-[12px] text-general">
-                            {u?.next_billing_date ||
+                            {u?.next_billing ||
+                              u?.next_billing_date ||
                               u?.subscription_end_date ||
                               "—"}
                           </td>
@@ -732,23 +737,20 @@ const SubscriptionManagement = () => {
                 </tbody>
               </table>
 
-              {/* Subscribers pagination */}
+              {/* Subscribers pagination — API uses { count, page, page_size } */}
               {!subsLoading && subscribers.length > 0 && (
                 <CustomPagination
                   currentPage={subsPage}
-                  totalPages={
-                    subsData?.pagination?.total_pages ||
-                    subsData?.total_pages ||
-                    subsData?.pages ||
-                    Math.max(
-                      1,
-                      Math.ceil(
-                        (subsData?.pagination?.total_count ||
-                          subsData?.total ||
-                          subscribers.length) / rowsPerPage
-                      )
+                  totalPages={Math.max(
+                    1,
+                    Math.ceil(
+                      (subsData?.count ||
+                        subsData?.pagination?.total_count ||
+                        subsData?.total ||
+                        subscribers.length) /
+                        (subsData?.page_size || rowsPerPage)
                     )
-                  }
+                  )}
                   onPageChange={setSubsPage}
                 />
               )}

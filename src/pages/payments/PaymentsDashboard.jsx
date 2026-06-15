@@ -71,7 +71,8 @@ const statusStyle = (s) =>
     label: s,
   };
 
-const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
+// Card with All-time + By Filter values stacked (Overview-style)
+const StatCard = ({ icon, color, bg, label, value, filteredValue, subtitle }) => (
   <Card
     sx={{
       borderRadius: "14px",
@@ -81,14 +82,23 @@ const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
     }}
   >
     <CardContent sx={{ p: 2.5 }}>
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
           <p className="text-[12px] text-primary_grey_2 font-medium">{label}</p>
-          <p className="text-[20px] font-semibold text-general mt-1.5">
-            {value}
-          </p>
+          <div className="mt-2">
+            <p className="text-[11px] text-primary_grey_2">All-time:</p>
+            <p className="text-[18px] font-semibold text-general">{value}</p>
+          </div>
+          {filteredValue !== undefined && (
+            <div className="mt-2">
+              <p className="text-[11px] text-primary_grey_2">By Filter:</p>
+              <p className="text-[16px] font-semibold text-general">
+                {filteredValue}
+              </p>
+            </div>
+          )}
           {subtitle && (
-            <p className="text-[11px] text-[#9CA3AF] mt-0.5">{subtitle}</p>
+            <p className="text-[11px] text-[#9CA3AF] mt-1.5">{subtitle}</p>
           )}
         </div>
         <div
@@ -182,7 +192,20 @@ const PaymentsDashboard = () => {
           .reduce((a, r) => a + r.commission, 0)
     );
     const net = Number(s.net_balance ?? inflow - outflow);
-    return { inflow, outflow, commission, net };
+    return {
+      inflow,
+      outflow,
+      commission,
+      net,
+      // Server-side "By Filter" values (date-range filtered)
+      filteredInflow: Number(s.filtered_inflow ?? 0),
+      filteredOutflow: Number(s.filtered_outflow ?? 0),
+      filteredCommission: Number(s.filtered_commission ?? 0),
+      filteredNet: Number(
+        s.filtered_net_balance ??
+          (Number(s.filtered_inflow ?? 0) - Number(s.filtered_outflow ?? 0))
+      ),
+    };
   }, [data, rows]);
 
   // Apply method / status / tab filters CLIENT-SIDE over the current page
@@ -220,46 +243,48 @@ const PaymentsDashboard = () => {
         <SelectDate />
       </div>
 
-      {/* Summary cards from API */}
+      {/* Summary cards — All-time + By Filter */}
       <Grid container spacing={2}>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             icon={<InflowIcon fontSize="small" />}
             color="#02981D"
             bg="#E6F7EA"
             label="Total Inflow"
             value={<FormattedPrice amount={totals.inflow} />}
-            subtitle="Money in"
+            filteredValue={<FormattedPrice amount={totals.filteredInflow} />}
           />
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             icon={<OutflowIcon fontSize="small" />}
             color="#DC3545"
             bg="#FDECEC"
             label="Total Outflow"
             value={<FormattedPrice amount={totals.outflow} />}
-            subtitle="Money out"
+            filteredValue={<FormattedPrice amount={totals.filteredOutflow} />}
           />
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             icon={<BalanceIcon fontSize="small" />}
             color="#0369A1"
             bg="#E0F2FE"
             label="Net Balance"
             value={<FormattedPrice amount={totals.net} />}
-            subtitle="Inflow − Outflow"
+            filteredValue={<FormattedPrice amount={totals.filteredNet} />}
           />
         </Grid>
-        <Grid item xs={6} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             icon={<CommissionIcon fontSize="small" />}
             color="#B26A00"
             bg="#FFF7E8"
             label="Total Commission"
             value={<FormattedPrice amount={totals.commission} />}
-            subtitle="Platform revenue"
+            filteredValue={
+              <FormattedPrice amount={totals.filteredCommission} />
+            }
           />
         </Grid>
       </Grid>

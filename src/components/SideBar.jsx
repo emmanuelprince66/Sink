@@ -3,6 +3,7 @@ import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import CardMembershipOutlinedIcon from "@mui/icons-material/CardMembershipOutlined";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
+import GroupAddOutlinedIcon from "@mui/icons-material/GroupAddOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
@@ -72,6 +73,15 @@ const SideBar = () => {
           link: "subscriptions",
           icon: (active) => (
             <CardMembershipOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
+        },
+        {
+          name: "Referrals",
+          link: "referrals",
+          icon: (active) => (
+            <GroupAddOutlinedIcon
               sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
             />
           ),

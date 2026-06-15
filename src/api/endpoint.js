@@ -117,14 +117,16 @@ export const transactionsPaymentDataUrl = (
   })}`;
 
 // /transaction/subscriptions/ — server-side filters: status, cycle, tx_type (all default "All")
-// Backward-compat: a 5-arg call with `_trxFilter` as the 4th arg still works — that
-// value is sent as `tx_type` (existing callers pass typeFilter there).
+// Dates intentionally NOT sent.
+// Backward-compat: ignores `selectedDates` (5th arg) — keeps the signature stable
+// so existing callers don't need to change.
 export const transactionsSubscriptionDataUrl = (
   currentPage,
   rowsPerPage,
   searchValue,
   txType,
-  selectedDates,
+  // eslint-disable-next-line no-unused-vars
+  _selectedDates,
   extraFilters,
 ) =>
   `/transaction/subscriptions/${buildQuery({
@@ -134,8 +136,6 @@ export const transactionsSubscriptionDataUrl = (
     tx_type: txType,
     status: extraFilters?.status,
     cycle: extraFilters?.cycle,
-    start_date: selectedDates?.startDate,
-    end_date: selectedDates?.endDate,
   })}`;
 
 export const transactionsMarketAutomationDataUrl = (
@@ -295,3 +295,41 @@ export const singlePartnerUrl = (id) => `/partners/user/${id}/`;
 export const suspendPartnerUrl = (id) => `/partners/suspend/${id}/`;
 // GET (treats as side-effect approve)
 export const approvePartnerUrl = (id) => `/partners/approve/${id}/`;
+
+// ─────────── Engagement Hub ───────────
+// NOTE: Backend mounted the /engagement/* routes at the HOST ROOT, not under
+// /api/v1/ like everything else. We pass absolute URLs so axios bypasses the
+// AuthAxios baseURL (the AuthAxios request interceptor still attaches the
+// Bearer token regardless of absolute vs relative URL).
+// If/when the backend moves these under /api/v1/, change ENGAGEMENT_BASE.
+const ENGAGEMENT_BASE = "https://admin-api.sync360.africa";
+
+// Templates CRUD
+// GET /engagement/templates/        — list
+// POST /engagement/templates/       — body { name, template_type, channel_type, subject, body }
+// PUT /engagement/templates/{id}    — same body
+// DELETE /engagement/templates/{id}
+export const engagementTemplatesUrl = () =>
+  `${ENGAGEMENT_BASE}/engagement/templates/`;
+export const engagementTemplateUrl = (id) =>
+  `${ENGAGEMENT_BASE}/engagement/templates/${id}`;
+
+// Metrics summary
+export const engagementMetricsUrl = () =>
+  `${ENGAGEMENT_BASE}/engagement/metrics/`;
+
+// Delivery logs / campaigns — paginated
+export const engagementCampaignsUrl = (page, pageSize) =>
+  `${ENGAGEMENT_BASE}/engagement/campaigns/${buildQuery({
+    page,
+    page_size: pageSize,
+  })}`;
+
+// Audience reach estimate — POST body { audience_type, audience_value }
+export const engagementAudienceEstimateUrl = () =>
+  `${ENGAGEMENT_BASE}/engagement/audience-estimate/`;
+
+// Send a broadcast — POST body { title, channel: [], audience_type, audience_value, template_id?, message_body? }
+// If template_id is provided, message_body should be null.
+export const engagementBroadcastUrl = () =>
+  `${ENGAGEMENT_BASE}/engagement/broadcast/`;

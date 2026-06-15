@@ -1,20 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ToastContainer, toast } from "react-toastify";
+import { format, parseISO } from "date-fns";
 import {
   Box,
   Button,
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Divider,
+  FormControl,
   Grid,
+  InputLabel,
   MenuItem,
   Select,
   Tab,
   Tabs,
   TextField,
-  Typography,
 } from "@mui/material";
 import {
+  AddRounded as AddIcon,
+  EditOutlined as EditIcon,
+  DeleteOutline as DeleteIcon,
   CampaignOutlined as CampaignIcon,
   NotificationsActiveOutlined as PushIcon,
   EmailOutlined as EmailIcon,
@@ -25,7 +33,47 @@ import {
   CheckCircleOutline as CheckIcon,
   CancelOutlined as CancelIcon,
   HourglassEmpty as PendingIcon,
+  ClearRounded as ClearIcon,
 } from "@mui/icons-material";
+import CustomPagination from "../../components/CustomPagination";
+import {
+  engagementTemplatesUrl,
+  engagementTemplateUrl,
+  engagementMetricsUrl,
+  engagementCampaignsUrl,
+  engagementAudienceEstimateUrl,
+  engagementBroadcastUrl,
+} from "../../api/endpoint";
+import useFetchData from "../../hooks/useFetchData";
+import { AuthAxios } from "../../helpers/axiosInstance";
+
+// ── API enum values ──
+const TEMPLATE_TYPES = ["Transactional", "Promotional", "Reminder"];
+const CHANNEL_TYPES = ["EMAIL", "SMS", "PUSH"];
+
+const AUDIENCE_TYPES = [
+  { key: "ALL_USERS", label: "All Users", needsValue: false },
+  { key: "BY_TIER", label: "By Tier", needsValue: true },
+  { key: "BY_SUBSCRIPTION", label: "By Subscription", needsValue: true },
+  { key: "BY_ACTIVITY", label: "By Activity", needsValue: true },
+];
+
+// Allowed audience_value for each audience_type
+const AUDIENCE_VALUES = {
+  BY_TIER: ["Tier 1", "Tier 2", "Tier 3"],
+  BY_SUBSCRIPTION: ["ACTIVE", "EXPIRING"],
+  BY_ACTIVITY: ["ACTIVE", "INACTIVE"],
+};
+
+// ── UI helpers ──
+const fmtDate = (iso) => {
+  if (!iso) return "—";
+  try {
+    return format(parseISO(iso), "dd MMM yyyy · HH:mm");
+  } catch {
+    return iso;
+  }
+};
 
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   <Card
@@ -71,84 +119,6 @@ const ChannelToggle = ({ icon, label, active, onClick }) => (
   </button>
 );
 
-const TEMPLATES = [
-  {
-    id: "subscription-reminder",
-    title: "Subscription Reminder",
-    description: "Nudge users whose subscription is about to lapse.",
-    body: "Hi {{name}}, your subscription expires in 3 days. Renew now to avoid service interruption.",
-    tag: "Reminder",
-  },
-  {
-    id: "kyc-approved",
-    title: "KYC Approved",
-    description: "Sent automatically once a KYC submission is approved.",
-    body: "Congratulations {{name}}, your KYC has been approved. You now have full access to all features.",
-    tag: "Transactional",
-  },
-  {
-    id: "kyc-rejected",
-    title: "KYC Rejected",
-    description: "Sent when KYC is rejected, requires reason.",
-    body: "Hi {{name}}, your KYC was not approved. Reason: {{reason}}. Please re-upload to continue.",
-    tag: "Transactional",
-  },
-  {
-    id: "promotion-easter",
-    title: "Promotional — Q2 Promo",
-    description: "Marketing push for the spring promotion.",
-    body: "Limited time! Get 25% off your next subscription. Use code SPRING25 at checkout.",
-    tag: "Promotion",
-  },
-];
-
-const LOGS = [
-  {
-    id: 1,
-    title: "April Subscription Reminder",
-    channel: "Email",
-    audience: "By Subscription Status — Expiring",
-    sent: "2026-04-21 09:00",
-    delivered: 12480,
-    opened: 8214,
-    failed: 36,
-    status: "delivered",
-  },
-  {
-    id: 2,
-    title: "Welcome Push — New Tier 2 Users",
-    channel: "Push",
-    audience: "By Tier — Tier 2",
-    sent: "2026-04-20 14:12",
-    delivered: 3220,
-    opened: 2104,
-    failed: 12,
-    status: "delivered",
-  },
-  {
-    id: 3,
-    title: "Promo SMS — SPRING25",
-    channel: "SMS",
-    audience: "All Users",
-    sent: "2026-04-19 10:30",
-    delivered: 49210,
-    opened: null,
-    failed: 142,
-    status: "delivered",
-  },
-  {
-    id: 4,
-    title: "Inactive User Re-engagement",
-    channel: "Email",
-    audience: "By Activity — Inactive 30d",
-    sent: "2026-04-22 08:00",
-    delivered: 0,
-    opened: null,
-    failed: 0,
-    status: "scheduled",
-  },
-];
-
 const StatusPill = ({ status }) => {
   const map = {
     delivered: {
@@ -157,11 +127,23 @@ const StatusPill = ({ status }) => {
       label: "Delivered",
       icon: <CheckIcon sx={{ fontSize: 14 }} />,
     },
+    sent: {
+      bg: "#E6F7EA",
+      color: "#02981D",
+      label: "Sent",
+      icon: <CheckIcon sx={{ fontSize: 14 }} />,
+    },
     failed: {
       bg: "#FDECEC",
       color: "#DC3545",
       label: "Failed",
       icon: <CancelIcon sx={{ fontSize: 14 }} />,
+    },
+    pending: {
+      bg: "#FFF7E8",
+      color: "#B26A00",
+      label: "Pending",
+      icon: <PendingIcon sx={{ fontSize: 14 }} />,
     },
     scheduled: {
       bg: "#FFF7E8",
@@ -169,61 +151,320 @@ const StatusPill = ({ status }) => {
       label: "Scheduled",
       icon: <PendingIcon sx={{ fontSize: 14 }} />,
     },
-  }[status];
+  };
+  const key = (status || "").toString().toLowerCase();
+  const s = map[key] || {
+    bg: "#F5F5F5",
+    color: "#5E5E5E",
+    label: status || "—",
+    icon: null,
+  };
   return (
     <span
       className="inline-flex items-center gap-1 text-[12px] font-medium px-2 py-1 rounded-full"
-      style={{ background: map.bg, color: map.color }}
+      style={{ background: s.bg, color: s.color }}
     >
-      {map.icon}
-      {map.label}
+      {s.icon}
+      {s.label}
     </span>
   );
 };
 
-const EngagementHub = () => {
-  const [tab, setTab] = useState(0);
-  const [channels, setChannels] = useState({
-    push: true,
-    email: true,
-    sms: false,
-  });
-  const [audience, setAudience] = useState("all");
-  const [template, setTemplate] = useState("");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+// ── Template form ──
+const emptyTemplate = () => ({
+  name: "",
+  template_type: "Transactional",
+  channel_type: "EMAIL",
+  subject: "",
+  body: "",
+});
 
-  const stats = useMemo(
-    () => ({
-      sent: LOGS.reduce((acc, l) => acc + l.delivered, 0),
-      open:
-        Math.round(
-          (LOGS.filter((l) => l.opened !== null).reduce(
-            (acc, l) => acc + l.opened,
-            0
-          ) /
-            Math.max(
-              LOGS.filter((l) => l.opened !== null).reduce(
-                (acc, l) => acc + l.delivered,
-                0
-              ),
-              1
-            )) *
-            100
-        ) + "%",
-      failed: LOGS.reduce((acc, l) => acc + l.failed, 0),
-      scheduled: LOGS.filter((l) => l.status === "scheduled").length,
-    }),
-    []
+const EngagementHub = () => {
+  const queryClient = useQueryClient();
+  const [tab, setTab] = useState(0);
+
+  // ── Compose state ──
+  const [channels, setChannels] = useState({
+    PUSH: false,
+    EMAIL: true,
+    SMS: false,
+  });
+  const [audienceType, setAudienceType] = useState("ALL_USERS");
+  const [audienceValue, setAudienceValue] = useState("");
+  const [templateId, setTemplateId] = useState("");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [audienceCount, setAudienceCount] = useState(null);
+  const [audienceLoading, setAudienceLoading] = useState(false);
+
+  // ── Template-modal state ──
+  const [tplOpen, setTplOpen] = useState(false);
+  const [tplEditing, setTplEditing] = useState(null);
+  const [tplForm, setTplForm] = useState(emptyTemplate());
+
+  // ── Campaigns pagination ──
+  const [campaignsPage, setCampaignsPage] = useState(1);
+  const [campaignsPageSize] = useState(20);
+
+  // ── Live fetches ──
+  const templatesApi = engagementTemplatesUrl();
+  const { data: templatesData, isLoading: templatesLoading } = useFetchData(
+    ["fetchEngagementTemplates", templatesApi],
+    templatesApi
   );
 
-  const onPickTemplate = (id) => {
-    const tpl = TEMPLATES.find((t) => t.id === id);
-    setTemplate(id);
-    if (tpl) {
-      setSubject(tpl.title);
-      setBody(tpl.body);
+  const metricsApi = engagementMetricsUrl();
+  const { data: metricsData } = useFetchData(
+    ["fetchEngagementMetrics", metricsApi],
+    metricsApi
+  );
+
+  const campaignsApi = engagementCampaignsUrl(
+    campaignsPage,
+    campaignsPageSize
+  );
+  const { data: campaignsData, isLoading: campaignsLoading } = useFetchData(
+    ["fetchEngagementCampaigns", campaignsApi, campaignsPage],
+    campaignsApi,
+    { enabled: tab === 2 } // only fetch when Delivery Logs tab active
+  );
+
+  const templates = useMemo(() => {
+    const raw = Array.isArray(templatesData?.data)
+      ? templatesData.data
+      : Array.isArray(templatesData?.results)
+      ? templatesData.results
+      : Array.isArray(templatesData)
+      ? templatesData
+      : [];
+    return raw;
+  }, [templatesData]);
+
+  const campaigns = useMemo(() => {
+    const raw = Array.isArray(campaignsData?.data)
+      ? campaignsData.data
+      : Array.isArray(campaignsData?.results)
+      ? campaignsData.results
+      : Array.isArray(campaignsData)
+      ? campaignsData
+      : [];
+    return raw;
+  }, [campaignsData]);
+
+  const campaignsTotalPages =
+    campaignsData?.pagination?.total_pages ||
+    campaignsData?.total_pages ||
+    Math.max(
+      1,
+      Math.ceil(
+        (campaignsData?.pagination?.total_count ||
+          campaignsData?.total_records ||
+          campaigns.length) / campaignsPageSize
+      )
+    );
+
+  // Metrics summary — backend returns plain object (may be JSON-encoded string)
+  const metricsSummary = useMemo(() => {
+    if (!metricsData) return {};
+    if (typeof metricsData === "string") {
+      try {
+        return JSON.parse(metricsData);
+      } catch {
+        return {};
+      }
     }
+    return metricsData;
+  }, [metricsData]);
+
+  // ── Audience estimate (debounced) ──
+  useEffect(() => {
+    const at = audienceType;
+    const av = AUDIENCE_VALUES[at] ? audienceValue : null;
+    // Skip if a sub-typed audience still has no value picked
+    if (AUDIENCE_VALUES[at] && !audienceValue) {
+      setAudienceCount(null);
+      return;
+    }
+    let cancelled = false;
+    setAudienceLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await AuthAxios.post(engagementAudienceEstimateUrl(), {
+          audience_type: at,
+          audience_value: av,
+        });
+        if (cancelled) return;
+        const payload = res?.data;
+        const count =
+          typeof payload === "number"
+            ? payload
+            : payload?.count ?? payload?.estimate ?? payload?.total ?? null;
+        setAudienceCount(count);
+      } catch {
+        if (!cancelled) setAudienceCount(null);
+      } finally {
+        if (!cancelled) setAudienceLoading(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [audienceType, audienceValue]);
+
+  // ── Mutations ──
+  const createTemplate = useMutation({
+    mutationFn: (payload) =>
+      AuthAxios.post(engagementTemplatesUrl(), payload),
+    onSuccess: () => {
+      toast.success("Template created");
+      queryClient.invalidateQueries({ queryKey: ["fetchEngagementTemplates"] });
+      closeTplModal();
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.detail?.[0]?.msg || "Failed to create"),
+  });
+
+  const updateTemplate = useMutation({
+    mutationFn: ({ id, payload }) =>
+      AuthAxios.put(engagementTemplateUrl(id), payload),
+    onSuccess: () => {
+      toast.success("Template updated");
+      queryClient.invalidateQueries({ queryKey: ["fetchEngagementTemplates"] });
+      closeTplModal();
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.detail?.[0]?.msg || "Failed to update"),
+  });
+
+  const deleteTemplate = useMutation({
+    mutationFn: (id) => AuthAxios.delete(engagementTemplateUrl(id)),
+    onSuccess: () => {
+      toast.success("Template deleted");
+      queryClient.invalidateQueries({ queryKey: ["fetchEngagementTemplates"] });
+    },
+    onError: (err) =>
+      toast.error(err?.response?.data?.detail?.[0]?.msg || "Failed to delete"),
+  });
+
+  const broadcast = useMutation({
+    mutationFn: (payload) => AuthAxios.post(engagementBroadcastUrl(), payload),
+    onSuccess: () => {
+      toast.success("Broadcast queued");
+      // Reset compose form
+      setTitle("");
+      setBody("");
+      setTemplateId("");
+      queryClient.invalidateQueries({ queryKey: ["fetchEngagementCampaigns"] });
+    },
+    onError: (err) =>
+      toast.error(
+        err?.response?.data?.detail?.[0]?.msg || "Failed to send broadcast"
+      ),
+  });
+
+  const isMutating =
+    createTemplate.isPending ||
+    updateTemplate.isPending ||
+    deleteTemplate.isPending;
+
+  // ── Template modal handlers ──
+  const openCreateTpl = () => {
+    setTplEditing(null);
+    setTplForm(emptyTemplate());
+    setTplOpen(true);
+  };
+
+  const openEditTpl = (tpl) => {
+    setTplEditing(tpl);
+    setTplForm({
+      name: tpl?.name || "",
+      template_type: tpl?.template_type || "Transactional",
+      channel_type: tpl?.channel_type || "EMAIL",
+      subject: tpl?.subject || "",
+      body: tpl?.body || "",
+    });
+    setTplOpen(true);
+  };
+
+  const closeTplModal = () => {
+    setTplOpen(false);
+    setTplEditing(null);
+  };
+
+  const handleTplSubmit = (e) => {
+    e.preventDefault();
+    const payload = {
+      name: tplForm.name,
+      template_type: tplForm.template_type,
+      channel_type: tplForm.channel_type,
+      subject: tplForm.subject,
+      body: tplForm.body,
+    };
+    if (tplEditing?.id) {
+      updateTemplate.mutate({ id: tplEditing.id, payload });
+    } else {
+      createTemplate.mutate(payload);
+    }
+  };
+
+  const handleTplDelete = () => {
+    if (!tplEditing?.id) return;
+    if (
+      window.confirm(
+        `Delete template "${tplEditing.name}"? This cannot be undone.`
+      )
+    ) {
+      deleteTemplate.mutate(tplEditing.id);
+      closeTplModal();
+    }
+  };
+
+  // ── Compose: pick template ──
+  const onPickTemplate = (id) => {
+    setTemplateId(id);
+    const tpl = templates.find((t) => t.id === id);
+    if (tpl) {
+      setTitle(tpl.subject || tpl.name || "");
+      setBody(""); // body is taken from template_id on the server
+      // Auto-tick the channel matching the template
+      const ch = (tpl.channel_type || "").toUpperCase();
+      if (CHANNEL_TYPES.includes(ch)) {
+        setChannels((c) => ({ ...c, [ch]: true }));
+      }
+    }
+  };
+
+  // ── Send broadcast ──
+  const handleSendNow = () => {
+    const channel = CHANNEL_TYPES.filter((c) => channels[c]);
+    if (channel.length === 0) {
+      toast.error("Pick at least one channel");
+      return;
+    }
+    if (!title.trim()) {
+      toast.error("Subject / title is required");
+      return;
+    }
+    const needsValue = AUDIENCE_VALUES[audienceType];
+    if (needsValue && !audienceValue) {
+      toast.error("Pick an audience value");
+      return;
+    }
+    if (!templateId && !body.trim()) {
+      toast.error("Either pick a template or enter a message body");
+      return;
+    }
+    const payload = {
+      title: title.trim(),
+      channel,
+      audience_type: audienceType,
+      audience_value: needsValue ? audienceValue : null,
+      template_id: templateId || null,
+      // Per spec: if template_id is set, message_body must be null
+      message_body: templateId ? null : body.trim(),
+    };
+    broadcast.mutate(payload);
   };
 
   return (
@@ -249,7 +490,11 @@ const EngagementHub = () => {
             color="#02981D"
             bg="#E6F7EA"
             label="Total Delivered"
-            value={stats.sent.toLocaleString()}
+            value={Number(
+              metricsSummary.total_delivered ??
+                metricsSummary.delivered ??
+                0
+            ).toLocaleString()}
             subtitle="Across all channels"
           />
         </Grid>
@@ -259,7 +504,11 @@ const EngagementHub = () => {
             color="#3949AB"
             bg="#EEF2FF"
             label="Avg. Open Rate"
-            value={stats.open}
+            value={
+              metricsSummary.open_rate
+                ? `${Math.round(Number(metricsSummary.open_rate) * 100)}%`
+                : "—"
+            }
             subtitle="Email / Push only"
           />
         </Grid>
@@ -269,7 +518,9 @@ const EngagementHub = () => {
             color="#DC3545"
             bg="#FDECEC"
             label="Failed"
-            value={stats.failed.toLocaleString()}
+            value={Number(
+              metricsSummary.failed ?? metricsSummary.total_failed ?? 0
+            ).toLocaleString()}
             subtitle="Retry available"
           />
         </Grid>
@@ -279,7 +530,9 @@ const EngagementHub = () => {
             color="#B26A00"
             bg="#FFF7E8"
             label="Scheduled"
-            value={stats.scheduled}
+            value={Number(
+              metricsSummary.scheduled ?? metricsSummary.total_scheduled ?? 0
+            ).toLocaleString()}
             subtitle="Awaiting send window"
           />
         </Grid>
@@ -316,10 +569,12 @@ const EngagementHub = () => {
             </Tabs>
           </Box>
 
+          {/* ─────────── COMPOSE TAB ─────────── */}
           {tab === 0 && (
             <Grid container spacing={3}>
               <Grid item xs={12} lg={7}>
                 <div className="flex flex-col gap-5">
+                  {/* Channels */}
                   <div>
                     <p className="text-[13px] font-semibold text-general mb-2">
                       Channels
@@ -328,79 +583,96 @@ const EngagementHub = () => {
                       <ChannelToggle
                         icon={<PushIcon fontSize="small" />}
                         label="Push"
-                        active={channels.push}
+                        active={channels.PUSH}
                         onClick={() =>
-                          setChannels((c) => ({ ...c, push: !c.push }))
+                          setChannels((c) => ({ ...c, PUSH: !c.PUSH }))
                         }
                       />
                       <ChannelToggle
                         icon={<EmailIcon fontSize="small" />}
                         label="Email"
-                        active={channels.email}
+                        active={channels.EMAIL}
                         onClick={() =>
-                          setChannels((c) => ({ ...c, email: !c.email }))
+                          setChannels((c) => ({ ...c, EMAIL: !c.EMAIL }))
                         }
                       />
                       <ChannelToggle
                         icon={<SmsIcon fontSize="small" />}
                         label="SMS"
-                        active={channels.sms}
+                        active={channels.SMS}
                         onClick={() =>
-                          setChannels((c) => ({ ...c, sms: !c.sms }))
+                          setChannels((c) => ({ ...c, SMS: !c.SMS }))
                         }
                       />
                     </div>
                   </div>
 
+                  {/* Audience */}
                   <div>
                     <p className="text-[13px] font-semibold text-general mb-2">
                       Audience
                     </p>
-                    <Select
-                      fullWidth
-                      size="small"
-                      value={audience}
-                      onChange={(e) => setAudience(e.target.value)}
-                    >
-                      <MenuItem value="all">All Users</MenuItem>
-                      <MenuItem value="tier-1">By Tier — Tier 1</MenuItem>
-                      <MenuItem value="tier-2">By Tier — Tier 2</MenuItem>
-                      <MenuItem value="tier-3">By Tier — Tier 3</MenuItem>
-                      <MenuItem value="sub-active">
-                        By Subscription Status — Active
-                      </MenuItem>
-                      <MenuItem value="sub-expiring">
-                        By Subscription Status — Expiring
-                      </MenuItem>
-                      <MenuItem value="active-30">
-                        By Activity — Active (last 30d)
-                      </MenuItem>
-                      <MenuItem value="inactive-30">
-                        By Activity — Inactive 30d
-                      </MenuItem>
-                    </Select>
+                    <div className="flex flex-wrap gap-2">
+                      <FormControl size="small" sx={{ minWidth: 200 }}>
+                        <InputLabel>Audience Type</InputLabel>
+                        <Select
+                          label="Audience Type"
+                          value={audienceType}
+                          onChange={(e) => {
+                            setAudienceType(e.target.value);
+                            setAudienceValue("");
+                          }}
+                        >
+                          {AUDIENCE_TYPES.map((a) => (
+                            <MenuItem key={a.key} value={a.key}>
+                              {a.label}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      {AUDIENCE_VALUES[audienceType] && (
+                        <FormControl size="small" sx={{ minWidth: 200 }}>
+                          <InputLabel>Audience Value</InputLabel>
+                          <Select
+                            label="Audience Value"
+                            value={audienceValue}
+                            onChange={(e) => setAudienceValue(e.target.value)}
+                          >
+                            {AUDIENCE_VALUES[audienceType].map((v) => (
+                              <MenuItem key={v} value={v}>
+                                {v}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+                    </div>
                   </div>
 
+                  {/* Template */}
                   <div>
                     <p className="text-[13px] font-semibold text-general mb-2">
-                      Template (optional)
+                      Template (optional — overrides Body)
                     </p>
                     <Select
                       fullWidth
                       size="small"
                       displayEmpty
-                      value={template}
+                      value={templateId}
                       onChange={(e) => onPickTemplate(e.target.value)}
                     >
-                      <MenuItem value="">— Start from scratch —</MenuItem>
-                      {TEMPLATES.map((t) => (
+                      <MenuItem value="">
+                        — Start from scratch (use Body below) —
+                      </MenuItem>
+                      {templates.map((t) => (
                         <MenuItem key={t.id} value={t.id}>
-                          {t.title}
+                          {t.name} ({t.channel_type})
                         </MenuItem>
                       ))}
                     </Select>
                   </div>
 
+                  {/* Subject / Title */}
                   <div>
                     <p className="text-[13px] font-semibold text-general mb-2">
                       Subject / Title
@@ -409,20 +681,31 @@ const EngagementHub = () => {
                       fullWidth
                       size="small"
                       placeholder="e.g. Renew your subscription before Friday"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
                     />
                   </div>
 
+                  {/* Message Body — disabled when template picked */}
                   <div>
                     <p className="text-[13px] font-semibold text-general mb-2">
-                      Message Body
+                      Message Body{" "}
+                      {templateId && (
+                        <span className="text-[12px] text-primary_grey_2 font-normal">
+                          (ignored — template will be used)
+                        </span>
+                      )}
                     </p>
                     <TextField
                       fullWidth
                       multiline
                       minRows={6}
-                      placeholder="Write your message. Use {{name}} for personalization."
+                      disabled={!!templateId}
+                      placeholder={
+                        templateId
+                          ? "Body comes from the picked template"
+                          : "Write your message. Use {{name}} for personalization."
+                      }
                       value={body}
                       onChange={(e) => setBody(e.target.value)}
                     />
@@ -430,18 +713,9 @@ const EngagementHub = () => {
 
                   <div className="flex flex-col sm:flex-row gap-2 justify-end">
                     <Button
-                      sx={{
-                        textTransform: "none",
-                        color: "#5E5E5E",
-                        border: "1px solid #E3E3E3",
-                        background: "#fff",
-                        "&:hover": { background: "#F5F5F5" },
-                      }}
-                    >
-                      Save as Draft
-                    </Button>
-                    <Button
                       variant="contained"
+                      onClick={handleSendNow}
+                      disabled={broadcast.isPending}
                       startIcon={<SendIcon />}
                       sx={{
                         textTransform: "none",
@@ -450,12 +724,20 @@ const EngagementHub = () => {
                         "&:hover": { background: "#017a17" },
                       }}
                     >
-                      Send Now
+                      {broadcast.isPending ? (
+                        <CircularProgress
+                          size="1.2rem"
+                          sx={{ color: "#fff" }}
+                        />
+                      ) : (
+                        "Send Now"
+                      )}
                     </Button>
                   </div>
                 </div>
               </Grid>
 
+              {/* Preview + reach */}
               <Grid item xs={12} lg={5}>
                 <div className="bg-[#FAFAFA] border border-[#EFEFEF] rounded-xl p-5 sticky top-2">
                   <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
@@ -463,223 +745,425 @@ const EngagementHub = () => {
                   </p>
                   <div className="bg-white rounded-xl border border-[#EFEFEF] p-4 min-h-[200px]">
                     <div className="flex items-center justify-between mb-2">
-                      <Chip
-                        size="small"
-                        label={
-                          channels.push && channels.email && channels.sms
-                            ? "Multi-channel"
-                            : channels.push
-                            ? "Push"
-                            : channels.email
-                            ? "Email"
-                            : channels.sms
-                            ? "SMS"
-                            : "No channel"
-                        }
-                        sx={{
-                          background: "#F6FFF8",
-                          color: "#02981D",
-                          fontWeight: 600,
-                        }}
-                      />
+                      <div className="flex gap-1 flex-wrap">
+                        {CHANNEL_TYPES.filter((c) => channels[c]).map((c) => (
+                          <Chip
+                            key={c}
+                            size="small"
+                            label={c}
+                            sx={{
+                              background: "#F6FFF8",
+                              color: "#02981D",
+                              fontWeight: 600,
+                            }}
+                          />
+                        ))}
+                        {CHANNEL_TYPES.every((c) => !channels[c]) && (
+                          <span className="text-[11px] text-[#DC3545]">
+                            No channel selected
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[11px] text-primary_grey_2">
                         Preview
                       </span>
                     </div>
                     <p className="text-[15px] font-semibold text-general">
-                      {subject || "Your message subject"}
+                      {title || "Your message subject"}
                     </p>
                     <Divider sx={{ my: 1.5 }} />
                     <p className="text-[13px] text-general whitespace-pre-wrap leading-relaxed">
-                      {body || "Your message body will appear here..."}
+                      {templateId
+                        ? templates.find((t) => t.id === templateId)?.body ||
+                          "(template body will be inserted server-side)"
+                        : body || "Your message body will appear here..."}
                     </p>
                   </div>
-                  <div className="mt-3 text-[12px] text-primary_grey_2">
+                  <div className="mt-3 text-[12px] text-primary_grey_2 flex items-center gap-2">
                     Estimated reach:{" "}
-                    <span className="text-general font-medium">
-                      {audience === "all"
-                        ? "~ 142,000 users"
-                        : "~ 24,300 users"}
-                    </span>
+                    {audienceLoading ? (
+                      <CircularProgress size="0.9rem" sx={{ color: "#02981D" }} />
+                    ) : audienceCount !== null ? (
+                      <span className="text-general font-medium">
+                        ~ {Number(audienceCount).toLocaleString()} users
+                      </span>
+                    ) : (
+                      <span className="text-[#9CA3AF]">—</span>
+                    )}
                   </div>
                 </div>
               </Grid>
             </Grid>
           )}
 
+          {/* ─────────── TEMPLATES TAB ─────────── */}
           {tab === 1 && (
-            <Grid container spacing={2}>
-              {TEMPLATES.map((t) => (
-                <Grid item xs={12} sm={6} lg={4} key={t.id}>
-                  <div className="border border-[#EFEFEF] rounded-xl p-4 h-full flex flex-col gap-2 hover:border-[#02981D]">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[14px] font-semibold text-general">
-                        {t.title}
-                      </p>
-                      <Chip
-                        size="small"
-                        label={t.tag}
-                        sx={{
-                          background: "#F5F5F5",
-                          color: "#5E5E5E",
-                          fontWeight: 600,
-                        }}
-                      />
-                    </div>
-                    <p className="text-[12px] text-primary_grey_2">
-                      {t.description}
-                    </p>
-                    <p className="text-[12px] text-general mt-2 line-clamp-3">
-                      {t.body}
-                    </p>
-                    <div className="mt-auto pt-3 flex justify-end gap-2">
-                      <Button
-                        size="small"
-                        sx={{
-                          textTransform: "none",
-                          color: "#5E5E5E",
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="contained"
-                        onClick={() => {
-                          setTab(0);
-                          onPickTemplate(t.id);
-                        }}
-                        sx={{
-                          textTransform: "none",
-                          background: "#02981D",
-                          boxShadow: "none",
-                          "&:hover": { background: "#017a17" },
-                        }}
-                      >
-                        Use Template
-                      </Button>
-                    </div>
-                  </div>
-                </Grid>
-              ))}
-            </Grid>
-          )}
-
-          {tab === 2 && (
             <>
-              <div className="hidden md:block w-full overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-[12px] uppercase tracking-wide text-primary_grey_2 border-b border-[#EFEFEF]">
-                      <th className="py-3 px-3">Campaign</th>
-                      <th className="py-3 px-3">Channel</th>
-                      <th className="py-3 px-3">Audience</th>
-                      <th className="py-3 px-3">Sent At</th>
-                      <th className="py-3 px-3">Delivered</th>
-                      <th className="py-3 px-3">Open Rate</th>
-                      <th className="py-3 px-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {LOGS.map((l) => (
-                      <tr
-                        key={l.id}
-                        className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
-                      >
-                        <td className="py-4 px-3 text-[13px] text-general font-medium">
-                          {l.title}
-                        </td>
-                        <td className="py-4 px-3 text-[13px]">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[13px] text-primary_grey_2">
+                  {templates.length} template
+                  {templates.length === 1 ? "" : "s"}
+                </p>
+                <Button
+                  onClick={openCreateTpl}
+                  startIcon={<AddIcon />}
+                  variant="contained"
+                  sx={{
+                    textTransform: "none",
+                    background: "#02981D",
+                    boxShadow: "none",
+                    "&:hover": { background: "#017a17" },
+                  }}
+                >
+                  New Template
+                </Button>
+              </div>
+
+              {templatesLoading ? (
+                <div className="py-10 flex justify-center">
+                  <CircularProgress sx={{ color: "#02981D" }} />
+                </div>
+              ) : templates.length === 0 ? (
+                <p className="py-10 text-center text-primary_grey_2 text-[13px]">
+                  No templates yet. Click "New Template" to create the first.
+                </p>
+              ) : (
+                <Grid container spacing={2}>
+                  {templates.map((t) => (
+                    <Grid item xs={12} sm={6} lg={4} key={t.id}>
+                      <div className="border border-[#EFEFEF] rounded-xl p-4 h-full flex flex-col gap-2 hover:border-[#02981D]">
+                        <div className="flex items-center justify-between">
+                          <p className="text-[14px] font-semibold text-general truncate">
+                            {t.name}
+                          </p>
                           <Chip
                             size="small"
-                            label={l.channel}
+                            label={t.template_type}
                             sx={{
                               background: "#F5F5F5",
                               color: "#5E5E5E",
                               fontWeight: 600,
                             }}
                           />
-                        </td>
-                        <td className="py-4 px-3 text-[13px] text-general">
-                          {l.audience}
-                        </td>
-                        <td className="py-4 px-3 text-[13px] text-primary_grey_2">
-                          {l.sent}
-                        </td>
-                        <td className="py-4 px-3 text-[13px] text-general">
-                          {l.delivered.toLocaleString()}
-                        </td>
-                        <td className="py-4 px-3 text-[13px] text-general">
-                          {l.opened === null
-                            ? "—"
-                            : `${Math.round(
-                                (l.opened / Math.max(l.delivered, 1)) * 100
-                              )}%`}
-                        </td>
-                        <td className="py-4 px-3">
-                          <StatusPill status={l.status} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Chip
+                            size="small"
+                            label={t.channel_type}
+                            sx={{
+                              background:
+                                t.channel_type === "EMAIL"
+                                  ? "#EEF2FF"
+                                  : t.channel_type === "SMS"
+                                  ? "#E6F7EA"
+                                  : "#FFF7E8",
+                              color:
+                                t.channel_type === "EMAIL"
+                                  ? "#3949AB"
+                                  : t.channel_type === "SMS"
+                                  ? "#02981D"
+                                  : "#B26A00",
+                              fontWeight: 600,
+                            }}
+                          />
+                          <span className="text-[11px] text-primary_grey_2">
+                            {fmtDate(t.created_at)}
+                          </span>
+                        </div>
+                        {t.subject && (
+                          <p className="text-[12px] text-general font-medium truncate">
+                            {t.subject}
+                          </p>
+                        )}
+                        <p className="text-[12px] text-primary_grey_2 line-clamp-3">
+                          {t.body}
+                        </p>
+                        <div className="mt-auto pt-3 flex justify-end gap-2">
+                          <Button
+                            size="small"
+                            startIcon={<EditIcon fontSize="small" />}
+                            onClick={() => openEditTpl(t)}
+                            sx={{
+                              textTransform: "none",
+                              color: "#5E5E5E",
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => {
+                              setTab(0);
+                              onPickTemplate(t.id);
+                            }}
+                            sx={{
+                              textTransform: "none",
+                              background: "#02981D",
+                              boxShadow: "none",
+                              "&:hover": { background: "#017a17" },
+                            }}
+                          >
+                            Use Template
+                          </Button>
+                        </div>
+                      </div>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+            </>
+          )}
+
+          {/* ─────────── DELIVERY LOGS TAB ─────────── */}
+          {tab === 2 && (
+            <>
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-[12px] uppercase tracking-wide text-primary_grey_2 border-b border-[#EFEFEF]">
+                      <th className="py-3 px-3">Title</th>
+                      <th className="py-3 px-3">Channel</th>
+                      <th className="py-3 px-3">Audience</th>
+                      <th className="py-3 px-3">Sent At</th>
+                      <th className="py-3 px-3 text-right">Delivered</th>
+                      <th className="py-3 px-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {campaignsLoading ? (
+                      <tr>
+                        <td colSpan={6} className="py-10 text-center">
+                          <CircularProgress sx={{ color: "#02981D" }} />
                         </td>
                       </tr>
-                    ))}
+                    ) : campaigns.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="py-10 text-center text-primary_grey_2"
+                        >
+                          No campaigns sent yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      campaigns.map((c, i) => {
+                        const channel = Array.isArray(c?.channel)
+                          ? c.channel.join(", ")
+                          : c?.channel || c?.channel_type || "—";
+                        const audience =
+                          c?.audience_value
+                            ? `${c.audience_type} · ${c.audience_value}`
+                            : c?.audience_type || "—";
+                        return (
+                          <tr
+                            key={c?.id || i}
+                            className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
+                          >
+                            <td className="py-4 px-3 text-[13px] text-general font-medium">
+                              {c?.title || c?.subject || "—"}
+                            </td>
+                            <td className="py-4 px-3">
+                              <Chip
+                                size="small"
+                                label={channel}
+                                sx={{
+                                  background: "#F5F5F5",
+                                  color: "#5E5E5E",
+                                  fontWeight: 600,
+                                }}
+                              />
+                            </td>
+                            <td className="py-4 px-3 text-[12px] text-general">
+                              {audience}
+                            </td>
+                            <td className="py-4 px-3 text-[12px] text-primary_grey_2">
+                              {fmtDate(c?.created_at || c?.sent_at)}
+                            </td>
+                            <td className="py-4 px-3 text-[13px] text-general text-right">
+                              {Number(
+                                c?.delivered ?? c?.delivered_count ?? 0
+                              ).toLocaleString()}
+                            </td>
+                            <td className="py-4 px-3">
+                              <StatusPill status={c?.status} />
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
 
-              <div className="md:hidden flex flex-col gap-3">
-                {LOGS.map((l) => (
-                  <div
-                    key={l.id}
-                    className="border border-[#EFEFEF] rounded-xl p-4"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-[14px] font-medium text-general">
-                          {l.title}
-                        </p>
-                        <p className="text-[12px] text-primary_grey_2 mt-0.5">
-                          {l.audience}
-                        </p>
-                      </div>
-                      <StatusPill status={l.status} />
-                    </div>
-                    <Divider sx={{ my: 1.5 }} />
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <p className="text-[11px] text-primary_grey_2">
-                          Channel
-                        </p>
-                        <p className="text-[12px] text-general font-medium">
-                          {l.channel}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-primary_grey_2">
-                          Delivered
-                        </p>
-                        <p className="text-[12px] text-general font-medium">
-                          {l.delivered.toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-primary_grey_2">
-                          Open Rate
-                        </p>
-                        <p className="text-[12px] text-general font-medium">
-                          {l.opened === null
-                            ? "—"
-                            : `${Math.round(
-                                (l.opened / Math.max(l.delivered, 1)) * 100
-                              )}%`}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {!campaignsLoading && campaigns.length > 0 && (
+                <CustomPagination
+                  currentPage={campaignsPage}
+                  totalPages={campaignsTotalPages}
+                  onPageChange={setCampaignsPage}
+                />
+              )}
             </>
           )}
         </CardContent>
       </Card>
+
+      {/* Template Create / Edit modal */}
+      {tplOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto"
+          onClick={closeTplModal}
+        >
+          <form
+            onSubmit={handleTplSubmit}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl w-full max-w-2xl mt-12 p-5 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[18px] font-semibold text-general">
+                {tplEditing ? "Edit Template" : "New Template"}
+              </p>
+              <ClearIcon
+                onClick={closeTplModal}
+                sx={{ color: "#1E1E1E", cursor: "pointer" }}
+              />
+            </div>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Template Name"
+                  value={tplForm.name}
+                  onChange={(e) =>
+                    setTplForm((f) => ({ ...f, name: e.target.value }))
+                  }
+                  required
+                />
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Type</InputLabel>
+                  <Select
+                    label="Type"
+                    value={tplForm.template_type}
+                    onChange={(e) =>
+                      setTplForm((f) => ({
+                        ...f,
+                        template_type: e.target.value,
+                      }))
+                    }
+                  >
+                    {TEMPLATE_TYPES.map((t) => (
+                      <MenuItem key={t} value={t}>
+                        {t}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Channel</InputLabel>
+                  <Select
+                    label="Channel"
+                    value={tplForm.channel_type}
+                    onChange={(e) =>
+                      setTplForm((f) => ({
+                        ...f,
+                        channel_type: e.target.value,
+                      }))
+                    }
+                  >
+                    {CHANNEL_TYPES.map((c) => (
+                      <MenuItem key={c} value={c}>
+                        {c}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Subject"
+                  value={tplForm.subject}
+                  onChange={(e) =>
+                    setTplForm((f) => ({ ...f, subject: e.target.value }))
+                  }
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={6}
+                  label="Body"
+                  value={tplForm.body}
+                  onChange={(e) =>
+                    setTplForm((f) => ({ ...f, body: e.target.value }))
+                  }
+                  required
+                />
+              </Grid>
+            </Grid>
+
+            <div className="flex justify-end gap-2 mt-2">
+              {tplEditing && (
+                <Button
+                  type="button"
+                  onClick={handleTplDelete}
+                  startIcon={<DeleteIcon />}
+                  disabled={isMutating}
+                  sx={{
+                    textTransform: "none",
+                    color: "#DC3545",
+                    mr: "auto",
+                    "&:hover": { background: "#FDECEC" },
+                  }}
+                >
+                  Delete
+                </Button>
+              )}
+              <Button
+                type="button"
+                onClick={closeTplModal}
+                disabled={isMutating}
+                sx={{
+                  textTransform: "none",
+                  color: "#5E5E5E",
+                  "&:hover": { background: "#F5F5F5" },
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={isMutating}
+                sx={{
+                  textTransform: "none",
+                  background: "#02981D",
+                  boxShadow: "none",
+                  "&:hover": { background: "#017a17" },
+                }}
+              >
+                {createTemplate.isPending || updateTemplate.isPending ? (
+                  <CircularProgress size="1.2rem" sx={{ color: "#fff" }} />
+                ) : tplEditing ? (
+                  "Save Changes"
+                ) : (
+                  "Create Template"
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <ToastContainer position="top-right" autoClose={4000} />
     </div>
   );
 };
