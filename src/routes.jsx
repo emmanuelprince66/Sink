@@ -25,6 +25,7 @@ import MemberProfile from "./pages/members/MemberProfile";
 import PaymentsDashboard from "./pages/payments/PaymentsDashboard";
 import Partners from "./pages/partners/Partners";
 import Referrals from "./pages/referrals/Referrals";
+import ReferrerDetailPage from "./pages/referrals/ReferrerDetailPage";
 import Rmerchant from "./pages/r-merchant/Rmerchant";
 import SubscriptionManagement from "./pages/subscriptions/SubscriptionManagement";
 import UserManagement from "./pages/users/UserManagement";
@@ -115,6 +116,11 @@ const RoutesContainer = () => {
       component: <Referrals />,
       path: "/referrals",
       name: "Referrals",
+    },
+    {
+      component: <ReferrerDetailPage />,
+      path: "/referrals/:id",
+      name: "Referrer Detail",
     },
   ];
   return (

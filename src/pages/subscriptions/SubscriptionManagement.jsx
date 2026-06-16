@@ -1,19 +1,26 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ToastContainer, toast } from "react-toastify";
+import {
+  AddRounded as AddIcon,
+  CheckCircleRounded as CheckIcon,
+  ChevronRightRounded as ChevronRightIcon,
+  ClearRounded as ClearIcon,
+  DeleteOutline as DeleteIcon,
+  EditOutlined as EditIcon,
+  ReportProblemOutlined as FailedIcon,
+  TrendingUpOutlined as MrrIcon,
+  PaidOutlined as PaidIcon,
+  PeopleAltOutlined as PeopleIcon,
+  CardMembershipOutlined as PlanIcon,
+  CancelRounded as XIcon,
+} from "@mui/icons-material";
 import {
   Box,
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Divider,
-  FormControl,
   Grid,
   InputAdornment,
-  InputLabel,
   MenuItem,
   Select,
   Switch,
@@ -21,38 +28,27 @@ import {
   Tabs,
   TextField,
 } from "@mui/material";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ToastContainer, toast } from "react-toastify";
 import {
-  AddRounded as AddIcon,
-  EditOutlined as EditIcon,
-  DeleteOutline as DeleteIcon,
-  PaidOutlined as PaidIcon,
-  PeopleAltOutlined as PeopleIcon,
-  CardMembershipOutlined as PlanIcon,
-  StarBorderRounded as StarIcon,
-  ClearRounded as ClearIcon,
-  ChevronRightRounded as ChevronRightIcon,
-  CheckCircleRounded as CheckIcon,
-  CancelRounded as XIcon,
-  TrendingUpOutlined as MrrIcon,
-  ReportProblemOutlined as FailedIcon,
-} from "@mui/icons-material";
-import CustomModal from "../../components/CustomModal";
-import FormattedPrice from "../../utils/FormattedPrice";
-import {
-  PLAN_LIMIT_FIELDS,
-  PLAN_FEATURE_FIELDS,
-  PLAN_PRICE_FIELDS,
-} from "../users/userData";
-import {
+  merchantSubscriptionsUrl,
   plansUrl,
   singlePlanUrl,
-  merchantSubscriptionsUrl,
   transactionsSubscriptionDataUrl,
 } from "../../api/endpoint";
-import useFetchData from "../../hooks/useFetchData";
-import { AuthAxios } from "../../helpers/axiosInstance";
+import CustomModal from "../../components/CustomModal";
 import CustomPagination from "../../components/CustomPagination";
+import { AuthAxios } from "../../helpers/axiosInstance";
+import useFetchData from "../../hooks/useFetchData";
 import { useDateContext } from "../../utils/DateContext";
+import FormattedPrice from "../../utils/FormattedPrice";
+import {
+  PLAN_FEATURE_FIELDS,
+  PLAN_LIMIT_FIELDS,
+  PLAN_PRICE_FIELDS,
+} from "../users/userData";
 
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   <Card
@@ -91,12 +87,12 @@ const PlanCard = ({ plan, onEdit }) => {
   const displayCycle = plan?.monthly
     ? "/ month"
     : plan?.quarterly
-    ? "/ quarter"
-    : plan?.biannually
-    ? "/ bi-annual"
-    : plan?.annually
-    ? "/ annual"
-    : "";
+      ? "/ quarter"
+      : plan?.biannually
+        ? "/ bi-annual"
+        : plan?.annually
+          ? "/ annual"
+          : "";
   return (
     <Card
       sx={{
@@ -109,7 +105,9 @@ const PlanCard = ({ plan, onEdit }) => {
         opacity: plan?.is_active === false ? 0.6 : 1,
       }}
     >
-      <CardContent sx={{ p: 3, flex: 1, display: "flex", flexDirection: "column" }}>
+      <CardContent
+        sx={{ p: 3, flex: 1, display: "flex", flexDirection: "column" }}
+      >
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-md flex items-center justify-center bg-[#F6FFF8] text-[#02981D]">
@@ -152,11 +150,7 @@ const PlanCard = ({ plan, onEdit }) => {
             <div key={p.key} className="flex justify-between">
               <span className="text-primary_grey_2">{p.label}</span>
               <span className="text-general font-medium">
-                {plan?.[p.key] ? (
-                  <FormattedPrice amount={plan[p.key]} />
-                ) : (
-                  "—"
-                )}
+                {plan?.[p.key] ? <FormattedPrice amount={plan[p.key]} /> : "—"}
               </span>
             </div>
           ))}
@@ -217,7 +211,6 @@ const PlanCard = ({ plan, onEdit }) => {
   );
 };
 
-
 const TYPE_BADGE = {
   New: { bg: "#E0F2FE", color: "#0369A1" },
   Renewal: { bg: "#E6F7EA", color: "#02981D" },
@@ -244,14 +237,14 @@ const mapApiPlan = (p) => {
 
 const mapApiSubTrx = (t) => ({
   id: t?.id || t?.reference || "—",
-  user: t?.user_name || t?.merchant_name || t?.user || "—",
+  user: t?.user_business?.business || t?.merchant_name || t?.user || "—",
   plan: (t?.plan_name || t?.plan || "").toString(),
   type: t?.transaction_type || t?.type || "Renewal",
   amount: Number(t?.amount || 0),
   cycle: t?.billing_cycle || t?.cycle || "Monthly",
-  start: t?.start_date || t?.created_at || "—",
-  end: t?.end_date || "—",
-  nextBilling: t?.next_billing_date || "—",
+  start: t?.start || t?.created_at || "—",
+  end: t?.end || "—",
+  nextBilling: t?.next_billing || "—",
   method: t?.payment_method || t?.method || "—",
   status: t?.status || "Pending",
 });
@@ -278,14 +271,14 @@ const SubscriptionManagement = () => {
   const plansApi = plansUrl();
   const { data: plansData, isLoading: plansLoading } = useFetchData(
     ["fetchPlans", plansApi],
-    plansApi
+    plansApi,
   );
 
   const subsApi = merchantSubscriptionsUrl(
     subsPage,
     rowsPerPage,
     subsSearch,
-    selectedDates
+    selectedDates,
   );
   // Only fetch the subscribers list when the Subscribers tab (1) is active
   const { data: subsData, isLoading: subsLoading } = useFetchData(
@@ -298,7 +291,7 @@ const SubscriptionManagement = () => {
       selectedDates?.endDate,
     ],
     subsApi,
-    { enabled: tab === 1 }
+    { enabled: tab === 1 },
   );
 
   // Push status / cycle / tx_type filters server-side (API defaults each to "All")
@@ -311,7 +304,7 @@ const SubscriptionManagement = () => {
     {
       status: statusFilter === "all" ? "All" : statusFilter,
       cycle: cycleFilter === "all" ? "All" : cycleFilter,
-    }
+    },
   );
   // Only fetch subscription transactions when the Sub Transactions tab (2) is active
   const { data: subTrxData, isLoading: subTrxLoading } = useFetchData(
@@ -326,17 +319,17 @@ const SubscriptionManagement = () => {
       selectedDates?.endDate,
     ],
     subTrxApi,
-    { enabled: tab === 2 }
+    { enabled: tab === 2 },
   );
 
   const plans = useMemo(() => {
     const raw = Array.isArray(plansData?.data)
       ? plansData.data
       : Array.isArray(plansData?.results)
-      ? plansData.results
-      : Array.isArray(plansData)
-      ? plansData
-      : [];
+        ? plansData.results
+        : Array.isArray(plansData)
+          ? plansData
+          : [];
     return raw.map(mapApiPlan).filter(Boolean);
   }, [plansData]);
 
@@ -344,20 +337,20 @@ const SubscriptionManagement = () => {
     return Array.isArray(subsData?.data)
       ? subsData.data
       : Array.isArray(subsData?.results)
-      ? subsData.results
-      : Array.isArray(subsData)
-      ? subsData
-      : [];
+        ? subsData.results
+        : Array.isArray(subsData)
+          ? subsData
+          : [];
   }, [subsData]);
 
   const subTrx = useMemo(() => {
     const raw = Array.isArray(subTrxData?.data)
       ? subTrxData.data
       : Array.isArray(subTrxData?.results)
-      ? subTrxData.results
-      : Array.isArray(subTrxData)
-      ? subTrxData
-      : [];
+        ? subTrxData.results
+        : Array.isArray(subTrxData)
+          ? subTrxData
+          : [];
     return raw.map(mapApiSubTrx);
   }, [subTrxData]);
 
@@ -403,7 +396,7 @@ const SubscriptionManagement = () => {
       .filter((t) => t.status === "Successful")
       .reduce((a, t) => a + (t.amount || 0), 0);
     const failedTrx = subTrx.filter(
-      (t) => t.type === "Renewal" && t.status === "Failed"
+      (t) => t.type === "Renewal" && t.status === "Failed",
     );
     return {
       plans: plans.length,
@@ -412,7 +405,7 @@ const SubscriptionManagement = () => {
           subsData?.pagination?.total_count ??
           subsData?.total ??
           subsData?.count ??
-          (Array.isArray(subscribers) ? subscribers.length : 0)
+          (Array.isArray(subscribers) ? subscribers.length : 0),
       ),
       revenueMTD: Number(s.total_revenue ?? fallbackRevenue),
       mrr: Number(s.mrr ?? fallbackRevenue),
@@ -446,8 +439,7 @@ const SubscriptionManagement = () => {
     setForm(emptyPlan());
   };
 
-  const setField = (key, value) =>
-    setForm((f) => ({ ...f, [key]: value }));
+  const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
   // Build the API payload — flat, matches PlanRequest exactly
   const buildPayload = () => {
@@ -717,9 +709,7 @@ const SubscriptionManagement = () => {
                             </span>
                           </td>
                           <td className="py-4 px-3 text-[12px] text-primary_grey_2">
-                            {u?.started ||
-                              u?.subscription_start_date ||
-                              "—"}
+                            {u?.started || u?.subscription_start_date || "—"}
                           </td>
                           <td className="py-4 px-3 text-[12px] text-general">
                             {u?.next_billing ||
@@ -748,8 +738,8 @@ const SubscriptionManagement = () => {
                         subsData?.pagination?.total_count ||
                         subsData?.total ||
                         subscribers.length) /
-                        (subsData?.page_size || rowsPerPage)
-                    )
+                        (subsData?.page_size || rowsPerPage),
+                    ),
                   )}
                   onPageChange={setSubsPage}
                 />
@@ -856,7 +846,7 @@ const SubscriptionManagement = () => {
                               {t.id}
                             </td>
                             <td className="py-4 px-3 text-[13px] text-general">
-                              {t.user}
+                              {t.user || "-"}
                             </td>
                             <td className="py-4 px-3">
                               <span
@@ -906,14 +896,14 @@ const SubscriptionManagement = () => {
                                     t.status === "Successful"
                                       ? "#E6F7EA"
                                       : t.status === "Failed"
-                                      ? "#FDECEC"
-                                      : "#FFF7E8",
+                                        ? "#FDECEC"
+                                        : "#FFF7E8",
                                   color:
                                     t.status === "Successful"
                                       ? "#02981D"
                                       : t.status === "Failed"
-                                      ? "#DC3545"
-                                      : "#B26A00",
+                                        ? "#DC3545"
+                                        : "#B26A00",
                                 }}
                               >
                                 {t.status}
@@ -942,8 +932,8 @@ const SubscriptionManagement = () => {
                           subTrxData?.total_records ||
                           subTrxData?.pagination?.total_count ||
                           subTrxData?.total ||
-                          filteredSubTrx.length) / rowsPerPage
-                      )
+                          filteredSubTrx.length) / rowsPerPage,
+                      ),
                     )
                   }
                   onPageChange={setSubTrxPage}
@@ -955,7 +945,11 @@ const SubscriptionManagement = () => {
       </Card>
 
       {/* Create / edit plan modal */}
-      <CustomModal open={open} closeModal={close} style="w-[95%] md:w-3/5 lg:w-1/2">
+      <CustomModal
+        open={open}
+        closeModal={close}
+        style="w-[95%] md:w-3/5 lg:w-1/2"
+      >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <p className="text-[18px] font-semibold text-general">
