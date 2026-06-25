@@ -36,6 +36,7 @@ import {
   ClearRounded as ClearIcon,
 } from "@mui/icons-material";
 import CustomPagination from "../../components/CustomPagination";
+import CustomModal from "../../components/CustomModal";
 import {
   engagementTemplatesUrl,
   engagementTemplateUrl,
@@ -73,6 +74,30 @@ const fmtDate = (iso) => {
   } catch {
     return iso;
   }
+};
+
+// Backend sends avg_open_rate pre-formatted as a string ("0.0%"). Older shapes
+// may send a fraction (0.25) or a bare number — normalize all to a "%" string.
+const fmtOpenRate = (v) => {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "string") return v.includes("%") ? v : `${v}%`;
+  const n = Number(v);
+  if (Number.isNaN(n)) return "—";
+  // fraction (≤1) -> percentage; otherwise assume it's already a percentage
+  return `${Math.round((n <= 1 ? n * 100 : n))}%`;
+};
+
+// Campaign `channel` arrives in inconsistent shapes from the backend:
+// "{SMS}", "{EMAIL,SMS,PUSH}", "EMAIL", "[SMS, EMAIL]", or a real array.
+// Strip the braces/brackets and return a clean list of channel names.
+const parseChannels = (raw) => {
+  if (Array.isArray(raw)) return raw.map((c) => String(c).trim()).filter(Boolean);
+  if (raw === null || raw === undefined) return [];
+  return String(raw)
+    .replace(/[{}[\]]/g, "")
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
 };
 
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
@@ -201,6 +226,10 @@ const EngagementHub = () => {
   const [tplOpen, setTplOpen] = useState(false);
   const [tplEditing, setTplEditing] = useState(null);
   const [tplForm, setTplForm] = useState(emptyTemplate());
+  // Template delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  // Broadcast review/confirm — holds the validated payload awaiting send
+  const [pendingBroadcast, setPendingBroadcast] = useState(null);
 
   // ── Campaigns pagination ──
   const [campaignsPage, setCampaignsPage] = useState(1);
@@ -257,9 +286,10 @@ const EngagementHub = () => {
     Math.max(
       1,
       Math.ceil(
-        (campaignsData?.pagination?.total_count ||
+        (campaignsData?.total ||
+          campaignsData?.pagination?.total_count ||
           campaignsData?.total_records ||
-          campaigns.length) / campaignsPageSize
+          campaigns.length) / (campaignsData?.page_size || campaignsPageSize)
       )
     );
 
@@ -298,7 +328,11 @@ const EngagementHub = () => {
         const count =
           typeof payload === "number"
             ? payload
-            : payload?.count ?? payload?.estimate ?? payload?.total ?? null;
+            : payload?.estimated_reach ??
+              payload?.count ??
+              payload?.estimate ??
+              payload?.total ??
+              null;
         setAudienceCount(count);
       } catch {
         if (!cancelled) setAudienceCount(null);
@@ -342,6 +376,7 @@ const EngagementHub = () => {
     onSuccess: () => {
       toast.success("Template deleted");
       queryClient.invalidateQueries({ queryKey: ["fetchEngagementTemplates"] });
+      setDeleteTarget(null);
     },
     onError: (err) =>
       toast.error(err?.response?.data?.detail?.[0]?.msg || "Failed to delete"),
@@ -351,10 +386,11 @@ const EngagementHub = () => {
     mutationFn: (payload) => AuthAxios.post(engagementBroadcastUrl(), payload),
     onSuccess: () => {
       toast.success("Broadcast queued");
-      // Reset compose form
+      // Reset compose form + close the review modal
       setTitle("");
       setBody("");
       setTemplateId("");
+      setPendingBroadcast(null);
       queryClient.invalidateQueries({ queryKey: ["fetchEngagementCampaigns"] });
     },
     onError: (err) =>
@@ -408,16 +444,11 @@ const EngagementHub = () => {
     }
   };
 
+  // Open the delete-confirm modal (close the edit modal underneath it first)
   const handleTplDelete = () => {
     if (!tplEditing?.id) return;
-    if (
-      window.confirm(
-        `Delete template "${tplEditing.name}"? This cannot be undone.`
-      )
-    ) {
-      deleteTemplate.mutate(tplEditing.id);
-      closeTplModal();
-    }
+    setDeleteTarget(tplEditing);
+    setTplOpen(false);
   };
 
   // ── Compose: pick template ──
@@ -464,7 +495,13 @@ const EngagementHub = () => {
       // Per spec: if template_id is set, message_body must be null
       message_body: templateId ? null : body.trim(),
     };
-    broadcast.mutate(payload);
+    // Don't fire immediately — open a review modal so the admin can confirm
+    // before blasting the audience.
+    setPendingBroadcast(payload);
+  };
+
+  const confirmSend = () => {
+    if (pendingBroadcast) broadcast.mutate(pendingBroadcast);
   };
 
   return (
@@ -504,11 +541,9 @@ const EngagementHub = () => {
             color="#3949AB"
             bg="#EEF2FF"
             label="Avg. Open Rate"
-            value={
-              metricsSummary.open_rate
-                ? `${Math.round(Number(metricsSummary.open_rate) * 100)}%`
-                : "—"
-            }
+            value={fmtOpenRate(
+              metricsSummary.avg_open_rate ?? metricsSummary.open_rate
+            )}
             subtitle="Email / Push only"
           />
         </Grid>
@@ -519,7 +554,10 @@ const EngagementHub = () => {
             bg="#FDECEC"
             label="Failed"
             value={Number(
-              metricsSummary.failed ?? metricsSummary.total_failed ?? 0
+              metricsSummary.failed_count ??
+                metricsSummary.failed ??
+                metricsSummary.total_failed ??
+                0
             ).toLocaleString()}
             subtitle="Retry available"
           />
@@ -531,7 +569,10 @@ const EngagementHub = () => {
             bg="#FFF7E8"
             label="Scheduled"
             value={Number(
-              metricsSummary.scheduled ?? metricsSummary.total_scheduled ?? 0
+              metricsSummary.scheduled_count ??
+                metricsSummary.scheduled ??
+                metricsSummary.total_scheduled ??
+                0
             ).toLocaleString()}
             subtitle="Awaiting send window"
           />
@@ -724,14 +765,7 @@ const EngagementHub = () => {
                         "&:hover": { background: "#017a17" },
                       }}
                     >
-                      {broadcast.isPending ? (
-                        <CircularProgress
-                          size="1.2rem"
-                          sx={{ color: "#fff" }}
-                        />
-                      ) : (
-                        "Send Now"
-                      )}
+                      Review &amp; Send
                     </Button>
                   </div>
                 </div>
@@ -922,25 +956,26 @@ const EngagementHub = () => {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="text-[12px] uppercase tracking-wide text-primary_grey_2 border-b border-[#EFEFEF]">
-                      <th className="py-3 px-3">Title</th>
+                      <th className="py-3 px-3">Campaign</th>
                       <th className="py-3 px-3">Channel</th>
                       <th className="py-3 px-3">Audience</th>
                       <th className="py-3 px-3">Sent At</th>
                       <th className="py-3 px-3 text-right">Delivered</th>
+                      <th className="py-3 px-3 text-right">Open Rate</th>
                       <th className="py-3 px-3">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {campaignsLoading ? (
                       <tr>
-                        <td colSpan={6} className="py-10 text-center">
+                        <td colSpan={7} className="py-10 text-center">
                           <CircularProgress sx={{ color: "#02981D" }} />
                         </td>
                       </tr>
                     ) : campaigns.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={6}
+                          colSpan={7}
                           className="py-10 text-center text-primary_grey_2"
                         >
                           No campaigns sent yet.
@@ -948,42 +983,63 @@ const EngagementHub = () => {
                       </tr>
                     ) : (
                       campaigns.map((c, i) => {
-                        const channel = Array.isArray(c?.channel)
-                          ? c.channel.join(", ")
-                          : c?.channel || c?.channel_type || "—";
-                        const audience =
-                          c?.audience_value
-                            ? `${c.audience_type} · ${c.audience_value}`
-                            : c?.audience_type || "—";
+                        const channels = parseChannels(
+                          c?.channel ?? c?.channel_type
+                        );
+                        const sentAt = c?.sent_at ?? c?.created_at;
                         return (
                           <tr
                             key={c?.id || i}
                             className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
                           >
                             <td className="py-4 px-3 text-[13px] text-general font-medium">
-                              {c?.title || c?.subject || "—"}
+                              {c?.campaign || c?.title || c?.subject || "—"}
                             </td>
                             <td className="py-4 px-3">
-                              <Chip
-                                size="small"
-                                label={channel}
-                                sx={{
-                                  background: "#F5F5F5",
-                                  color: "#5E5E5E",
-                                  fontWeight: 600,
-                                }}
-                              />
+                              <div className="flex flex-wrap gap-1">
+                                {channels.length ? (
+                                  channels.map((ch) => (
+                                    <Chip
+                                      key={ch}
+                                      size="small"
+                                      label={ch}
+                                      sx={{
+                                        background:
+                                          ch === "EMAIL"
+                                            ? "#EEF2FF"
+                                            : ch === "SMS"
+                                            ? "#E6F7EA"
+                                            : "#FFF7E8",
+                                        color:
+                                          ch === "EMAIL"
+                                            ? "#3949AB"
+                                            : ch === "SMS"
+                                            ? "#02981D"
+                                            : "#B26A00",
+                                        fontWeight: 600,
+                                      }}
+                                    />
+                                  ))
+                                ) : (
+                                  <span className="text-[12px] text-primary_grey_2">
+                                    —
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="py-4 px-3 text-[12px] text-general">
-                              {audience}
+                              {c?.audience || "—"}
                             </td>
                             <td className="py-4 px-3 text-[12px] text-primary_grey_2">
-                              {fmtDate(c?.created_at || c?.sent_at)}
+                              {sentAt && sentAt !== "—" ? sentAt : "—"}
                             </td>
                             <td className="py-4 px-3 text-[13px] text-general text-right">
                               {Number(
                                 c?.delivered ?? c?.delivered_count ?? 0
                               ).toLocaleString()}
+                            </td>
+                            <td className="py-4 px-3 text-[13px] text-general text-right">
+                              {c?.open_rate ?? "—"}
                             </td>
                             <td className="py-4 px-3">
                               <StatusPill status={c?.status} />
@@ -1009,27 +1065,23 @@ const EngagementHub = () => {
       </Card>
 
       {/* Template Create / Edit modal */}
-      {tplOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center p-4 overflow-y-auto"
-          onClick={closeTplModal}
-        >
-          <form
-            onSubmit={handleTplSubmit}
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl w-full max-w-2xl mt-12 p-5 flex flex-col gap-4 max-h-[90vh] overflow-y-auto"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[18px] font-semibold text-general">
-                {tplEditing ? "Edit Template" : "New Template"}
-              </p>
-              <ClearIcon
-                onClick={closeTplModal}
-                sx={{ color: "#1E1E1E", cursor: "pointer" }}
-              />
-            </div>
+      <CustomModal
+        open={tplOpen}
+        closeModal={closeTplModal}
+        style="w-[95%] md:w-3/5 lg:w-1/2"
+      >
+        <form onSubmit={handleTplSubmit} className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[18px] font-semibold text-general">
+              {tplEditing ? "Edit Template" : "New Template"}
+            </p>
+            <ClearIcon
+              onClick={closeTplModal}
+              sx={{ color: "#1E1E1E", cursor: "pointer" }}
+            />
+          </div>
 
-            <Grid container spacing={2}>
+          <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -1110,39 +1162,225 @@ const EngagementHub = () => {
               </Grid>
             </Grid>
 
-            <div className="flex justify-end gap-2 mt-2">
-              {tplEditing && (
-                <Button
-                  type="button"
-                  onClick={handleTplDelete}
-                  startIcon={<DeleteIcon />}
-                  disabled={isMutating}
-                  sx={{
-                    textTransform: "none",
-                    color: "#DC3545",
-                    mr: "auto",
-                    "&:hover": { background: "#FDECEC" },
-                  }}
-                >
-                  Delete
-                </Button>
-              )}
+          <div className="flex justify-end gap-2 mt-2">
+            {tplEditing && (
               <Button
                 type="button"
-                onClick={closeTplModal}
+                onClick={handleTplDelete}
+                startIcon={<DeleteIcon />}
                 disabled={isMutating}
+                sx={{
+                  textTransform: "none",
+                  color: "#DC3545",
+                  mr: "auto",
+                  "&:hover": { background: "#FDECEC" },
+                }}
+              >
+                Delete
+              </Button>
+            )}
+            <Button
+              type="button"
+              onClick={closeTplModal}
+              disabled={isMutating}
+              sx={{
+                textTransform: "none",
+                color: "#5E5E5E",
+                "&:hover": { background: "#F5F5F5" },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isMutating}
+              sx={{
+                textTransform: "none",
+                background: "#02981D",
+                boxShadow: "none",
+                "&:hover": { background: "#017a17" },
+              }}
+            >
+              {createTemplate.isPending || updateTemplate.isPending ? (
+                <CircularProgress size="1.2rem" sx={{ color: "#fff" }} />
+              ) : tplEditing ? (
+                "Save Changes"
+              ) : (
+                "Create Template"
+              )}
+            </Button>
+          </div>
+        </form>
+      </CustomModal>
+
+      {/* Delete confirmation modal */}
+      <CustomModal
+        open={!!deleteTarget}
+        closeModal={() => setDeleteTarget(null)}
+        style="w-[95%] sm:w-[440px]"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[18px] font-semibold text-general">
+              Delete Template
+            </p>
+            <ClearIcon
+              onClick={() => setDeleteTarget(null)}
+              sx={{ color: "#1E1E1E", cursor: "pointer" }}
+            />
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-full bg-[#FDECEC] text-[#DC3545] flex items-center justify-center">
+              <DeleteIcon fontSize="small" />
+            </div>
+            <p className="text-[14px] text-general leading-relaxed">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">
+                &ldquo;{deleteTarget?.name}&rdquo;
+              </span>
+              ? This action cannot be undone.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <Button
+              type="button"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleteTemplate.isPending}
+              sx={{
+                textTransform: "none",
+                color: "#5E5E5E",
+                "&:hover": { background: "#F5F5F5" },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="contained"
+              onClick={() => deleteTarget?.id && deleteTemplate.mutate(deleteTarget.id)}
+              disabled={deleteTemplate.isPending}
+              startIcon={!deleteTemplate.isPending && <DeleteIcon />}
+              sx={{
+                textTransform: "none",
+                background: "#DC3545",
+                boxShadow: "none",
+                "&:hover": { background: "#b52a37" },
+              }}
+            >
+              {deleteTemplate.isPending ? (
+                <CircularProgress size="1.2rem" sx={{ color: "#fff" }} />
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </div>
+        </div>
+      </CustomModal>
+
+      {/* Broadcast review / confirm modal */}
+      <CustomModal
+        open={!!pendingBroadcast}
+        closeModal={() => setPendingBroadcast(null)}
+        style="w-[95%] md:w-3/5 lg:w-[480px]"
+      >
+        {pendingBroadcast && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[18px] font-semibold text-general">
+                Review broadcast
+              </p>
+              <ClearIcon
+                onClick={() => setPendingBroadcast(null)}
+                sx={{ color: "#1E1E1E", cursor: "pointer" }}
+              />
+            </div>
+
+            <p className="text-[13px] text-primary_grey_2">
+              You're about to send this message. Double-check the details before
+              dispatching.
+            </p>
+
+            <div className="border border-[#EFEFEF] rounded-xl divide-y divide-[#F5F5F5]">
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                  Subject
+                </span>
+                <span className="text-[13px] text-general font-medium text-right max-w-[60%] truncate">
+                  {pendingBroadcast.title}
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                  Channels
+                </span>
+                <span className="flex gap-1 flex-wrap justify-end">
+                  {pendingBroadcast.channel.map((ch) => (
+                    <Chip
+                      key={ch}
+                      size="small"
+                      label={ch}
+                      sx={{
+                        background: "#F6FFF8",
+                        color: "#02981D",
+                        fontWeight: 600,
+                      }}
+                    />
+                  ))}
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                  Audience
+                </span>
+                <span className="text-[13px] text-general font-medium">
+                  {AUDIENCE_TYPES.find(
+                    (a) => a.key === pendingBroadcast.audience_type
+                  )?.label || pendingBroadcast.audience_type}
+                  {pendingBroadcast.audience_value
+                    ? ` · ${pendingBroadcast.audience_value}`
+                    : ""}
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                  Source
+                </span>
+                <span className="text-[13px] text-general font-medium">
+                  {pendingBroadcast.template_id ? "Template" : "Custom body"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                  Estimated reach
+                </span>
+                <span className="text-[13px] text-general font-semibold">
+                  {audienceCount !== null
+                    ? `~ ${Number(audienceCount).toLocaleString()} users`
+                    : "—"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-2">
+              <Button
+                type="button"
+                onClick={() => setPendingBroadcast(null)}
+                disabled={broadcast.isPending}
                 sx={{
                   textTransform: "none",
                   color: "#5E5E5E",
                   "&:hover": { background: "#F5F5F5" },
                 }}
               >
-                Cancel
+                Back to edit
               </Button>
               <Button
-                type="submit"
+                type="button"
                 variant="contained"
-                disabled={isMutating}
+                onClick={confirmSend}
+                disabled={broadcast.isPending}
+                startIcon={!broadcast.isPending && <SendIcon />}
                 sx={{
                   textTransform: "none",
                   background: "#02981D",
@@ -1150,18 +1388,16 @@ const EngagementHub = () => {
                   "&:hover": { background: "#017a17" },
                 }}
               >
-                {createTemplate.isPending || updateTemplate.isPending ? (
+                {broadcast.isPending ? (
                   <CircularProgress size="1.2rem" sx={{ color: "#fff" }} />
-                ) : tplEditing ? (
-                  "Save Changes"
                 ) : (
-                  "Create Template"
+                  "Confirm & Send"
                 )}
               </Button>
             </div>
-          </form>
-        </div>
-      )}
+          </div>
+        )}
+      </CustomModal>
 
       <ToastContainer position="top-right" autoClose={4000} />
     </div>

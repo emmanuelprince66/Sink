@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
+  CircularProgress,
   Divider,
   Grid,
   InputAdornment,
@@ -20,7 +21,11 @@ import {
   ShieldOutlined as ShieldIcon,
 } from "@mui/icons-material";
 import FormattedPrice from "../../utils/FormattedPrice";
-import { PLATFORM, REFERRERS } from "./referralData";
+import CustomPagination from "../../components/CustomPagination";
+import useFetchData from "../../hooks/useFetchData";
+import { referralOverviewUrl, referrersUrl } from "../../api/endpoint";
+
+const ROWS_PER_PAGE = 20;
 
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   <Card
@@ -61,20 +66,77 @@ const initials = (name) =>
     .slice(0, 2)
     .toUpperCase();
 
+// Normalize a referrer row — the list endpoint's exact keys aren't pinned in
+// swagger, so accept the detail-style names with sensible fallbacks.
+const mapReferrer = (r) => ({
+  id: r?.referrer_id ?? r?.id,
+  name: r?.referrer_name ?? r?.name ?? "—",
+  // The list endpoint omits email/code (detail-only) — keep null so we can
+  // hide the sub-line rather than render dashes.
+  email: r?.email ?? null,
+  code: r?.referral_code ?? r?.code ?? null,
+  referrals: r?.referrals_count ?? r?.total_referrals ?? r?.referrals ?? 0,
+  pending: r?.pending_rewards ?? r?.pending ?? 0,
+  unlocked: r?.unlocked_rewards ?? r?.unlocked ?? 0,
+  withdrawn: r?.withdrawn_rewards ?? r?.withdrawn ?? r?.paid_out ?? 0,
+});
+
 const Referrals = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    if (!search) return REFERRERS;
-    const q = search.toLowerCase();
-    return REFERRERS.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.email.toLowerCase().includes(q) ||
-        r.code.toLowerCase().includes(q)
-    );
+  // Debounce the search box → drives the server-side query
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
   }, [search]);
+
+  // ── Overview metrics ──
+  const overviewApi = referralOverviewUrl();
+  const { data: overviewData, isLoading: overviewLoading } = useFetchData(
+    ["referralOverview", overviewApi],
+    overviewApi
+  );
+  const metrics = overviewData?.metrics ?? overviewData ?? {};
+
+  // ── Referrer list ──
+  const referrersApi = referrersUrl(debouncedSearch, page, ROWS_PER_PAGE);
+  const { data: referrersData, isLoading: referrersLoading } = useFetchData(
+    ["referrers", referrersApi, debouncedSearch, page],
+    referrersApi
+  );
+
+  const referrers = useMemo(() => {
+    const raw = Array.isArray(referrersData?.data)
+      ? referrersData.data
+      : Array.isArray(referrersData?.results)
+      ? referrersData.results
+      : Array.isArray(referrersData?.referrers)
+      ? referrersData.referrers
+      : Array.isArray(referrersData)
+      ? referrersData
+      : [];
+    return raw.map(mapReferrer);
+  }, [referrersData]);
+
+  const totalPages =
+    referrersData?.pagination?.total_pages ||
+    referrersData?.total_pages ||
+    Math.max(
+      1,
+      Math.ceil(
+        (referrersData?.count ||
+          referrersData?.total ||
+          referrersData?.total_records ||
+          referrers.length) /
+          (referrersData?.page_size || ROWS_PER_PAGE)
+      )
+    );
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -101,7 +163,11 @@ const Referrals = () => {
             color="#3949AB"
             bg="#EEF2FF"
             label="Total Referrals"
-            value={PLATFORM.totalReferrals.toLocaleString()}
+            value={
+              overviewLoading
+                ? "…"
+                : Number(metrics.total_referrals ?? 0).toLocaleString()
+            }
             subtitle="All-time"
           />
         </Grid>
@@ -111,7 +177,11 @@ const Referrals = () => {
             color="#02981D"
             bg="#E6F7EA"
             label="Active Referrers"
-            value={PLATFORM.activeReferrers.toLocaleString()}
+            value={
+              overviewLoading
+                ? "…"
+                : Number(metrics.active_referrers ?? 0).toLocaleString()
+            }
             subtitle="≥ 1 referral"
           />
         </Grid>
@@ -121,7 +191,7 @@ const Referrals = () => {
             color="#B26A00"
             bg="#FFF7E8"
             label="Pending Rewards"
-            value={<FormattedPrice amount={PLATFORM.pendingRewards} />}
+            value={<FormattedPrice amount={metrics.pending_rewards ?? 0} />}
             subtitle="Locked liability"
           />
         </Grid>
@@ -131,7 +201,7 @@ const Referrals = () => {
             color="#0369A1"
             bg="#E0F2FE"
             label="Unlocked Rewards"
-            value={<FormattedPrice amount={PLATFORM.unlockedRewards} />}
+            value={<FormattedPrice amount={metrics.unlocked_rewards ?? 0} />}
             subtitle="Withdrawable"
           />
         </Grid>
@@ -141,7 +211,7 @@ const Referrals = () => {
             color="#02981D"
             bg="#E6F7EA"
             label="Paid Out"
-            value={<FormattedPrice amount={PLATFORM.paidOut} />}
+            value={<FormattedPrice amount={metrics.paid_out ?? 0} />}
             subtitle="All-time payouts"
           />
         </Grid>
@@ -151,7 +221,7 @@ const Referrals = () => {
             color="#DC3545"
             bg="#FDECEC"
             label="Expiring Rewards"
-            value={<FormattedPrice amount={PLATFORM.expiringRewards} />}
+            value={<FormattedPrice amount={metrics.expiring_rewards ?? 0} />}
             subtitle="Next 30 days"
           />
         </Grid>
@@ -205,7 +275,13 @@ const Referrals = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {referrersLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center">
+                      <CircularProgress sx={{ color: "#02981D" }} />
+                    </td>
+                  </tr>
+                ) : referrers.length === 0 ? (
                   <tr>
                     <td
                       colSpan={6}
@@ -215,7 +291,7 @@ const Referrals = () => {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((r) => (
+                  referrers.map((r) => (
                     <tr
                       key={r.id}
                       onClick={() => navigate(`/referrals/${r.id}`)}
@@ -230,15 +306,20 @@ const Referrals = () => {
                             <p className="text-[13px] font-medium text-general truncate">
                               {r.name}
                             </p>
-                            <p className="text-[11px] text-primary_grey_2 truncate">
-                              {r.email} ·{" "}
-                              <span className="font-mono">{r.code}</span>
-                            </p>
+                            {(r.email || r.code) && (
+                              <p className="text-[11px] text-primary_grey_2 truncate">
+                                {r.email}
+                                {r.email && r.code ? " · " : ""}
+                                {r.code && (
+                                  <span className="font-mono">{r.code}</span>
+                                )}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-3 text-[13px] text-general text-right">
-                        {r.referrals.toLocaleString()}
+                        {Number(r.referrals).toLocaleString()}
                       </td>
                       <td className="py-3 px-3 text-[13px] text-[#B26A00] text-right">
                         <FormattedPrice amount={r.pending} />
@@ -261,55 +342,75 @@ const Referrals = () => {
 
           {/* Mobile cards */}
           <div className="md:hidden flex flex-col gap-3">
-            {filtered.map((r) => (
-              <div
-                key={r.id}
-                onClick={() => navigate(`/referrals/${r.id}`)}
-                className="border border-[#EFEFEF] rounded-xl p-4 active:bg-[#FAFAFA]"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-[#F6FFF8] text-[#02981D] flex items-center justify-center font-semibold text-[12px] flex-none">
-                    {initials(r.name)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-medium text-general truncate">
-                      {r.name}
-                    </p>
-                    <p className="text-[11px] text-primary_grey_2 truncate">
-                      {r.email}
-                    </p>
-                  </div>
-                </div>
-                <Divider sx={{ my: 1.5 }} />
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <p className="text-[11px] text-primary_grey_2">Referrals</p>
-                    <p className="text-[13px] font-medium text-general">
-                      {r.referrals}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[11px] text-primary_grey_2">Withdrawn</p>
-                    <p className="text-[13px] font-medium text-general">
-                      <FormattedPrice amount={r.withdrawn} />
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-primary_grey_2">Pending</p>
-                    <p className="text-[13px] text-[#B26A00] font-medium">
-                      <FormattedPrice amount={r.pending} />
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[11px] text-primary_grey_2">Unlocked</p>
-                    <p className="text-[13px] text-[#02981D] font-semibold">
-                      <FormattedPrice amount={r.unlocked} />
-                    </p>
-                  </div>
-                </div>
+            {referrersLoading ? (
+              <div className="py-10 flex justify-center">
+                <CircularProgress sx={{ color: "#02981D" }} />
               </div>
-            ))}
+            ) : referrers.length === 0 ? (
+              <p className="py-6 text-center text-primary_grey_2 text-[13px]">
+                No referrers match your search.
+              </p>
+            ) : (
+              referrers.map((r) => (
+                <div
+                  key={r.id}
+                  onClick={() => navigate(`/referrals/${r.id}`)}
+                  className="border border-[#EFEFEF] rounded-xl p-4 active:bg-[#FAFAFA]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-[#F6FFF8] text-[#02981D] flex items-center justify-center font-semibold text-[12px] flex-none">
+                      {initials(r.name)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-medium text-general truncate">
+                        {r.name}
+                      </p>
+                      {(r.email || r.code) && (
+                        <p className="text-[11px] text-primary_grey_2 truncate">
+                          {r.email || r.code}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Divider sx={{ my: 1.5 }} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-[11px] text-primary_grey_2">Referrals</p>
+                      <p className="text-[13px] font-medium text-general">
+                        {r.referrals}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] text-primary_grey_2">Withdrawn</p>
+                      <p className="text-[13px] font-medium text-general">
+                        <FormattedPrice amount={r.withdrawn} />
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-primary_grey_2">Pending</p>
+                      <p className="text-[13px] text-[#B26A00] font-medium">
+                        <FormattedPrice amount={r.pending} />
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] text-primary_grey_2">Unlocked</p>
+                      <p className="text-[13px] text-[#02981D] font-semibold">
+                        <FormattedPrice amount={r.unlocked} />
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
+
+          {!referrersLoading && referrers.length > 0 && (
+            <CustomPagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

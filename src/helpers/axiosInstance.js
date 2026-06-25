@@ -1,17 +1,22 @@
 import Axios from "axios";
 import { getCookie, setCookie } from "../utils/cookieAuth";
+//staging-admin-api.sync360.africa/docs
+
+// ─────────── Single source of truth for the API base URL ───────────
+// Everything that needs the API host (axios instances + endpoint.js) reads
+// from here. Swap staging/production by changing this one line.
+export const API_BASE_URL = "https://staging-admin-api.sync360.africa/api/v1/";
+// export const API_BASE_URL = "https://admin-api.sync360.africa/api/v1/";
 
 // Axios instance for API calls
 export const AuthAxios = Axios.create({
-  baseURL: "https://admin-api.sync360.africa/api/v1/",
+  baseURL: API_BASE_URL,
   withCredentials: false,
 });
 
-// baseURL: "https://staging.wagesfinance.ng//api/v1/",
-
 // Axios instance for authentication related calls
 export const BaseAxios = Axios.create({
-  baseURL: "https://admin-api.sync360.africa/api/v1/",
+  baseURL: API_BASE_URL,
   withCredentials: false,
 });
 
@@ -59,7 +64,7 @@ AuthAxios.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Add response interceptor to handle token expiration
@@ -97,7 +102,7 @@ AuthAxios.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 // Usage example

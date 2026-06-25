@@ -1,3 +1,10 @@
+import { API_BASE_URL } from "../helpers/axiosInstance";
+
+// Engagement routes are mounted at the HOST ROOT (not under /api/v1/), so we
+// derive the bare origin from the single source of truth in axiosInstance.js.
+// e.g. "https://staging-admin-api.sync360.africa/api/v1/" -> "https://staging-admin-api.sync360.africa"
+const ENGAGEMENT_BASE = new URL(API_BASE_URL).origin;
+
 // Build a query string from an object — skips null / undefined / "" / "undefined".
 // Numbers (including 0) and the string "false" are kept since they're valid values.
 const buildQuery = (params) => {
@@ -296,13 +303,33 @@ export const suspendPartnerUrl = (id) => `/partners/suspend/${id}/`;
 // GET (treats as side-effect approve)
 export const approvePartnerUrl = (id) => `/partners/approve/${id}/`;
 
+// ─────────── Referral (admin monitoring) ───────────
+// All under /api/v1/ (the AuthAxios baseURL) — relative paths only.
+// GET /referral/overview/ — high-level metrics { metrics: {...} }
+export const referralOverviewUrl = () => `/referral/overview/`;
+
+// GET /referral/referrers/ — paginated list, server-side search
+export const referrersUrl = (searchValue, currentPage, rowsPerPage) =>
+  `/referral/referrers/${buildQuery({
+    search: searchValue,
+    page: currentPage,
+    limit: rowsPerPage,
+  })}`;
+
+// GET /referral/referrers/{id}/ — full referrer profile + linked businesses
+export const referrerDetailsUrl = (referrerId) =>
+  `/referral/referrers/${referrerId}/`;
+
+// GET /referral/referred/{business_id}/ — single referred-business detail
+export const referredBusinessUrl = (businessId) =>
+  `/referral/referred/${businessId}/`;
+
 // ─────────── Engagement Hub ───────────
 // NOTE: Backend mounted the /engagement/* routes at the HOST ROOT, not under
 // /api/v1/ like everything else. We pass absolute URLs so axios bypasses the
 // AuthAxios baseURL (the AuthAxios request interceptor still attaches the
 // Bearer token regardless of absolute vs relative URL).
 // If/when the backend moves these under /api/v1/, change ENGAGEMENT_BASE.
-const ENGAGEMENT_BASE = "https://admin-api.sync360.africa";
 
 // Templates CRUD
 // GET /engagement/templates/        — list

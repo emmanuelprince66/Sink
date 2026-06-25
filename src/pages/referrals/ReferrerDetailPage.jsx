@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Divider,
   Grid,
   InputAdornment,
@@ -25,7 +26,8 @@ import {
 } from "@mui/icons-material";
 import FormattedPrice from "../../utils/FormattedPrice";
 import CustomModal from "../../components/CustomModal";
-import { findReferrer } from "./referralData";
+import useFetchData from "../../hooks/useFetchData";
+import { referrerDetailsUrl, referredBusinessUrl } from "../../api/endpoint";
 
 const StatusPill = ({ status }) => {
   const map = {
@@ -40,7 +42,7 @@ const StatusPill = ({ status }) => {
       style={{ background: s.bg, color: s.color }}
     >
       {status === "Active" && <CheckIcon sx={{ fontSize: 12 }} />}
-      {status}
+      {status || "—"}
     </span>
   );
 };
@@ -61,9 +63,7 @@ const StatTile = ({ icon, color, bg, label, value, sub }) => (
           <p className="text-[20px] font-semibold text-general mt-1.5">
             {value}
           </p>
-          {sub && (
-            <p className="text-[11px] text-[#9CA3AF] mt-0.5">{sub}</p>
-          )}
+          {sub && <p className="text-[11px] text-[#9CA3AF] mt-0.5">{sub}</p>}
         </div>
         <div
           className="h-9 w-9 rounded-full flex items-center justify-center flex-none"
@@ -87,12 +87,73 @@ const initials = (name) =>
 const ReferrerDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const referrer = useMemo(() => findReferrer(id), [id]);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [search, setSearch] = useState("");
   const [copied, setCopied] = useState(false);
 
-  if (!referrer) {
+  // ── Referrer profile (+ linked businesses) ──
+  const detailApi = referrerDetailsUrl(id);
+  const { data, isLoading, error } = useFetchData(
+    ["referrerDetails", detailApi, id],
+    detailApi
+  );
+
+  const referrer = useMemo(() => {
+    if (!data) return null;
+    return {
+      id,
+      name: data.referrer_name ?? "—",
+      email: data.email ?? "—",
+      joined: data.joined_date ?? "—",
+      code: data.referral_code ?? "—",
+      referrals:
+        data.summary?.total_referrals ?? data.referred_businesses_count ?? 0,
+      pending: data.summary?.pending_rewards ?? 0,
+      unlocked: data.summary?.unlocked_rewards ?? 0,
+      withdrawn: data.summary?.withdrawn_rewards ?? 0,
+      businesses: Array.isArray(data.referred_businesses)
+        ? data.referred_businesses.map((b) => ({
+            id: b.business_id,
+            name: b.business_name ?? "—",
+            status: b.status ?? "—",
+            plan: b.plan_name && b.plan_name !== "-" ? b.plan_name : "—",
+            pending: b.pending ?? 0,
+            unlocked: b.unlocked ?? 0,
+            expiresInDays: b.expires_days ?? 0,
+          }))
+        : [],
+    };
+  }, [data, id]);
+
+  const businesses = referrer?.businesses || [];
+  const filteredBiz = useMemo(() => {
+    if (!search) return businesses;
+    const q = search.toLowerCase();
+    return businesses.filter(
+      (b) =>
+        (b.name || "").toLowerCase().includes(q) ||
+        (b.plan || "").toLowerCase().includes(q) ||
+        (b.status || "").toLowerCase().includes(q)
+    );
+  }, [search, businesses]);
+
+  const copyCode = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard && referrer) {
+      navigator.clipboard.writeText(referrer.code);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="w-full flex items-center justify-center min-h-[60vh]">
+        <CircularProgress sx={{ color: "#02981D" }} />
+      </div>
+    );
+  }
+
+  if (error || !referrer) {
     return (
       <div className="w-full flex flex-col items-center justify-center min-h-[60vh] gap-3">
         <p className="text-[16px] font-semibold text-general">
@@ -114,26 +175,6 @@ const ReferrerDetailPage = () => {
       </div>
     );
   }
-
-  const businesses = referrer.businesses || [];
-  const filteredBiz = useMemo(() => {
-    if (!search) return businesses;
-    const q = search.toLowerCase();
-    return businesses.filter(
-      (b) =>
-        b.name.toLowerCase().includes(q) ||
-        b.plan.toLowerCase().includes(q) ||
-        b.status.toLowerCase().includes(q)
-    );
-  }, [search, businesses]);
-
-  const copyCode = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(referrer.code);
-    }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -194,7 +235,7 @@ const ReferrerDetailPage = () => {
             color="#3949AB"
             bg="#EEF2FF"
             label="Total Referrals"
-            value={referrer.referrals.toLocaleString()}
+            value={Number(referrer.referrals).toLocaleString()}
             sub="Businesses referred"
           />
         </Grid>
@@ -405,8 +446,9 @@ const ReferrerDetailPage = () => {
       >
         {selectedBusiness && (
           <BusinessDetail
-            business={selectedBusiness}
-            referrer={referrer}
+            businessId={selectedBusiness.id}
+            fallbackName={selectedBusiness.name}
+            referrerName={referrer.name}
             close={() => setSelectedBusiness(null)}
           />
         )}
@@ -415,29 +457,77 @@ const ReferrerDetailPage = () => {
   );
 };
 
-const BusinessDetail = ({ business, referrer, close }) => {
+const BusinessDetail = ({ businessId, fallbackName, referrerName, close }) => {
+  const api = referredBusinessUrl(businessId);
+  const { data, isLoading } = useFetchData(
+    ["referredBusiness", api, businessId],
+    api
+  );
+
+  const b = useMemo(() => {
+    if (!data) return null;
+    return {
+      name: data.referred_business_name ?? fallbackName ?? "—",
+      referrerName: data.referrer_name ?? referrerName,
+      status: data.status ?? "—",
+      totalReward: data.total_reward ?? 0,
+      unlocked: data.unlocked_reward ?? 0,
+      remaining: data.remaining_locked_reward ?? 0,
+      progress: data.progress_percentage,
+      plan: data.plan_name && data.plan_name !== "-" ? data.plan_name : "—",
+      currentSubscription: data.current_subscription_price ?? 0,
+      totalSubscriptionValue: data.total_subscription_value ?? 0,
+      expiresInDays: data.expiry_days ?? 0,
+      activity: Array.isArray(data.recent_activity)
+        ? data.recent_activity.map((a) => ({
+            date: a.date,
+            subscription: a.subscription_amount ?? 0,
+            reward: a.reward_unlocked ?? 0,
+          }))
+        : [],
+    };
+  }, [data, fallbackName, referrerName]);
+
   const pct = useMemo(() => {
-    if (!business.totalReward) return 0;
-    return Math.min(
-      100,
-      Math.round((business.unlocked / business.totalReward) * 100)
+    if (!b) return 0;
+    if (b.progress !== null && b.progress !== undefined)
+      return Math.min(100, Math.round(Number(b.progress)));
+    if (!b.totalReward) return 0;
+    return Math.min(100, Math.round((b.unlocked / b.totalReward) * 100));
+  }, [b]);
+
+  // Loading shell — keep the header + close affordance visible
+  if (isLoading || !b) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start justify-between">
+          <p className="text-[18px] font-semibold text-general">
+            {fallbackName || "Business"}
+          </p>
+          <ClearIcon
+            onClick={close}
+            sx={{ color: "#1E1E1E", cursor: "pointer" }}
+          />
+        </div>
+        <div className="py-12 flex justify-center">
+          <CircularProgress sx={{ color: "#02981D" }} />
+        </div>
+      </div>
     );
-  }, [business]);
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[18px] font-semibold text-general">
-            {business.name}
-          </p>
+          <p className="text-[18px] font-semibold text-general">{b.name}</p>
           <p className="text-[12px] text-primary_grey_2 mt-0.5">
             Referred by{" "}
-            <span className="font-medium text-general">{referrer?.name}</span>
+            <span className="font-medium text-general">{b.referrerName}</span>
           </p>
         </div>
         <div className="flex items-start gap-2">
-          <StatusPill status={business.status} />
+          <StatusPill status={b.status} />
           <ClearIcon
             onClick={close}
             sx={{ color: "#1E1E1E", cursor: "pointer" }}
@@ -453,19 +543,19 @@ const BusinessDetail = ({ business, referrer, close }) => {
           <Grid item xs={4}>
             <p className="text-[11px] text-primary_grey_2">Total Reward</p>
             <p className="text-[16px] font-semibold text-general mt-0.5">
-              <FormattedPrice amount={business.totalReward} />
+              <FormattedPrice amount={b.totalReward} />
             </p>
           </Grid>
           <Grid item xs={4}>
             <p className="text-[11px] text-primary_grey_2">Unlocked</p>
             <p className="text-[16px] font-semibold text-[#02981D] mt-0.5">
-              <FormattedPrice amount={business.unlocked} />
+              <FormattedPrice amount={b.unlocked} />
             </p>
           </Grid>
           <Grid item xs={4}>
             <p className="text-[11px] text-primary_grey_2">Remaining</p>
             <p className="text-[16px] font-semibold text-[#B26A00] mt-0.5">
-              <FormattedPrice amount={business.pending} />
+              <FormattedPrice amount={b.remaining} />
             </p>
           </Grid>
         </Grid>
@@ -493,27 +583,18 @@ const BusinessDetail = ({ business, referrer, close }) => {
         </p>
         <Divider />
         {[
-          ["Plan", business.plan],
+          ["Plan", b.plan],
           [
             "Current Subscription",
-            <FormattedPrice key="c" amount={business.currentSubscription} />,
+            <FormattedPrice key="c" amount={b.currentSubscription} />,
           ],
           [
             "Total Subscription Value",
-            <FormattedPrice
-              key="t"
-              amount={business.totalSubscriptionValue}
-            />,
+            <FormattedPrice key="t" amount={b.totalSubscriptionValue} />,
           ],
-          [
-            "Unlocked Reward",
-            <FormattedPrice key="u" amount={business.unlocked} />,
-          ],
-          [
-            "Remaining Reward",
-            <FormattedPrice key="r" amount={business.pending} />,
-          ],
-          ["Expiry", `${business.expiresInDays} Days`],
+          ["Unlocked Reward", <FormattedPrice key="u" amount={b.unlocked} />],
+          ["Remaining Reward", <FormattedPrice key="r" amount={b.remaining} />],
+          ["Expiry", `${b.expiresInDays} Days`],
         ].map(([label, value], i, arr) => (
           <div key={label}>
             <div className="flex items-center justify-between py-2 gap-3">
@@ -531,7 +612,7 @@ const BusinessDetail = ({ business, referrer, close }) => {
         <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
           Recent Subscription Activity
         </p>
-        {business.activity.length === 0 ? (
+        {b.activity.length === 0 ? (
           <p className="text-[13px] text-primary_grey_2 text-center py-4">
             No subscription activity yet.
           </p>
@@ -546,7 +627,7 @@ const BusinessDetail = ({ business, referrer, close }) => {
                 </tr>
               </thead>
               <tbody>
-                {business.activity.map((a, i) => (
+                {b.activity.map((a, i) => (
                   <tr
                     key={i}
                     className="border-b border-[#F5F5F5] last:border-0"
