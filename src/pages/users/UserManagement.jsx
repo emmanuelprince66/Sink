@@ -165,13 +165,15 @@ const UserManagement = () => {
   }, [users, statusFilter, tierFilter]);
 
   const counts = useMemo(() => {
+    // All four are now server-provided (across all pages). Fall back to
+    // current-page derivations only if the field is missing.
     return {
-      // total comes from the server (across all pages); the others stay
-      // derived from the current page rows since the API doesn't expose them
       total: data?.total ?? users.length,
-      active: users.filter((u) => u.status === "active").length,
-      suspended: 0,
-      pending: 0,
+      active:
+        data?.active_count ??
+        users.filter((u) => u.status === "active").length,
+      suspended: data?.suspended_count ?? 0,
+      pending: data?.pending_count ?? 0,
     };
   }, [users, data]);
 
@@ -445,9 +447,9 @@ const UserManagement = () => {
                   />
                 </div>
                 <div className="mt-3 flex items-center justify-between text-[12px] text-primary_grey_2">
-                  <span>{u.email}</span>
-                  <span className="text-general font-medium">
-                    <FormattedPrice amount={u.inflow + u.outflow} />
+                  <span className="truncate">{u.email}</span>
+                  <span className="text-general font-medium whitespace-nowrap">
+                    <FormattedPrice amount={u.totalTransactions} />
                   </span>
                 </div>
               </div>
