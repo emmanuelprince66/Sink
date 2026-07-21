@@ -178,6 +178,59 @@ export const transactionsCampaignUnitDataUrl = (
     start_date: selectedDates?.startDate,
     end_date: selectedDates?.endDate,
   })}`;
+
+// ─────────── Campaign dashboard (transaction/campaign-*) ───────────
+// GET /transaction/campaign-top-spenders/ — page, page_size, start_date, end_date
+export const campaignTopSpendersUrl = (currentPage, pageSize, selectedDates) =>
+  `/transaction/campaign-top-spenders/${buildQuery({
+    page: currentPage,
+    page_size: pageSize,
+    start_date: selectedDates?.startDate,
+    end_date: selectedDates?.endDate,
+  })}`;
+
+// GET /transaction/campaign-revenue-series/ — days (1–90, default 7)
+export const campaignRevenueSeriesUrl = (days) =>
+  `/transaction/campaign-revenue-series/${buildQuery({ days })}`;
+
+// GET /transaction/campaign-messages-series/ — days (1–90, default 7)
+export const campaignMessagesSeriesUrl = (days) =>
+  `/transaction/campaign-messages-series/${buildQuery({ days })}`;
+
+// GET /transaction/campaign-recent-activity/ — page, page_size
+export const campaignRecentActivityUrl = (currentPage, pageSize) =>
+  `/transaction/campaign-recent-activity/${buildQuery({
+    page: currentPage,
+    page_size: pageSize,
+  })}`;
+
+// GET /transaction/campaign-recent-transactions/ — page, page_size, status
+// status: All | PENDING | SUCCESSFUL | EXPIRED
+export const campaignRecentTransactionsUrl = (currentPage, pageSize, status) =>
+  `/transaction/campaign-recent-transactions/${buildQuery({
+    page: currentPage,
+    page_size: pageSize,
+    status,
+  })}`;
+
+// GET /transaction/sender-ids/ — page, page_size, status, search
+// status: All | PENDING | APPROVED | REJECTED
+export const senderIdsUrl = (currentPage, pageSize, status, searchValue) =>
+  `/transaction/sender-ids/${buildQuery({
+    page: currentPage,
+    page_size: pageSize,
+    status,
+    search: searchValue,
+  })}`;
+
+// POST /transaction/sender-ids/{request_id}/approve/
+export const senderIdApproveUrl = (requestId) =>
+  `/transaction/sender-ids/${requestId}/approve/`;
+
+// POST /transaction/sender-ids/{request_id}/reject/ — body { rejection_reason }
+export const senderIdRejectUrl = (requestId) =>
+  `/transaction/sender-ids/${requestId}/reject/`;
+
 export const checkNameForWithdrawalApprovalUrl = (id) => {
   return `/admin/check_name/${id}`;
 };

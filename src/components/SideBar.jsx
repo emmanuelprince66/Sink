@@ -1,9 +1,9 @@
 import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettingsOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import CardMembershipOutlinedIcon from "@mui/icons-material/CardMembershipOutlined";
+import GroupAddOutlinedIcon from "@mui/icons-material/GroupAddOutlined";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
-import GroupAddOutlinedIcon from "@mui/icons-material/GroupAddOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
@@ -13,7 +13,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import Seight from "../assets/sidebar/Seight";
 import Sone from "../assets/sidebar/Sone";
 import Sseven from "../assets/sidebar/Sseven";
-import Ssix from "../assets/sidebar/Ssix";
 // import Stwo from "../assets/sidebar/Stwo";
 import sinkTwo from "../assets/sink/sink2.png";
 
@@ -176,7 +175,7 @@ const SideBar = () => {
       <div className="flex-1 overflow-y-auto pr-1">
         {groups.map((group) => (
           <div key={group.label} className="mb-5">
-            <p className="px-3 mb-2 text-[11px] uppercase tracking-wide text-[#9CA3AF] font-semibold">
+            <p className="px-3 mb-2 text-[11px] uppercase tracking-wide  font-semibold">
               {group.label}
             </p>
             <ul className="flex flex-col gap-1">
@@ -188,7 +187,7 @@ const SideBar = () => {
                       to={`/${item.link}`}
                       className={`flex items-center gap-3 py-[10px] px-[14px] rounded-[10px] text-[14px] font-medium transition ${
                         active
-                          ? "bg-[#02981D] text-white"
+                          ? "bg-[#02981D] text-[#ffff]"
                           : "text-grey_2 hover:bg-[#F6FFF8] hover:text-[#02981D]"
                       }`}
                     >
