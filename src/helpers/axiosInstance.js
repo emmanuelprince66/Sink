@@ -5,8 +5,8 @@ import { getCookie, setCookie } from "../utils/cookieAuth";
 // ─────────── Single source of truth for the API base URL ───────────
 // Everything that needs the API host (axios instances + endpoint.js) reads
 // from here. Swap staging/production by changing this one line.
-export const API_BASE_URL = "https://staging-admin-api.sync360.africa/api/v1/";
-// export const API_BASE_URL = "https://admin-api.sync360.africa/api/v1/";
+// export const API_BASE_URL = "https://staging-admin-api.sync360.africa/api/v1/";
+export const API_BASE_URL = "https://admin-api.sync360.africa/api/v1/";
 
 // Axios instance for API calls
 export const AuthAxios = Axios.create({
