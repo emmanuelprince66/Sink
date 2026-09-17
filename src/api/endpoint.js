@@ -94,6 +94,40 @@ export const loanRequestsDataUrl = (
 ) => {
   return `/admin/loan_overview/?page=${currentPage}&limit=${rowsPerPage}&search=${searchValue}&status=${filterValue}`;
 };
+
+// Logistics endpoints
+export const logisticsOverviewUrl = (selectedDates) =>
+  `/logistics/overview/${buildQuery({
+    start_date: selectedDates?.startDate,
+    end_date: selectedDates?.endDate,
+  })}`;
+
+export const logisticsDeliveriesUrl = (
+  status,
+  selectedDates,
+  currentPage = 1,
+  pageSize = 20,
+) =>
+  `/logistics/deliveries/${buildQuery({
+    status:
+      status === "all"
+        ? undefined
+        : {
+            pending: "PENDING",
+            assigned: "RIDER-ASSIGNED",
+            picked_up: "PICKED-UP",
+            in_transit: "OUT-FOR-DELIVERY",
+            delivered: "DELIVERED",
+            failed: "RETURNED",
+          }[status] || status,
+    start_date: selectedDates?.startDate,
+    end_date: selectedDates?.endDate,
+    page: currentPage,
+    size: pageSize,
+  })}`;
+
+export const logisticsDeliveryDetailUrl = (saleId) =>
+  `/logistics/deliveries/${saleId}/`;
 export const transactionsDataUrl = (
   currentPage,
   rowsPerPage,

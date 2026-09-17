@@ -1,17 +1,13 @@
 import { useMemo, useState } from "react";
 import {
-  Box,
   Button,
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Divider,
   Grid,
   InputAdornment,
-  MenuItem,
-  Select,
-  Tab,
-  Tabs,
   TextField,
 } from "@mui/material";
 import {
@@ -30,6 +26,14 @@ import {
 } from "@mui/icons-material";
 import CustomModal from "../../components/CustomModal";
 import FormattedPrice from "../../utils/FormattedPrice";
+import SelectDate from "../../components/SelectDate";
+import useFetchData from "../../hooks/useFetchData";
+import {
+  logisticsDeliveryDetailUrl,
+  logisticsDeliveriesUrl,
+  logisticsOverviewUrl,
+} from "../../api/endpoint";
+import { useDateContext } from "../../utils/DateContext";
 
 const STATUS_FILTERS = [
   { key: "all", label: "All" },
@@ -95,156 +99,139 @@ const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   </Card>
 );
 
-const SAMPLE_DELIVERIES = [
-  {
-    id: "ORD-10298",
-    sender: "Sunde Logistics Ltd",
-    receiver: "Adaeze Okoro",
-    rider: "Musa Ibrahim",
-    pickup: "12 Allen Ave, Ikeja, Lagos",
-    dropoff: "44 Bode Thomas, Surulere, Lagos",
-    amount: 4500,
-    status: "in_transit",
-    created: "2026-04-22 08:14",
-    timeline: [
-      { label: "Order placed", time: "2026-04-22 08:14", done: true },
-      { label: "Assigned to rider", time: "2026-04-22 08:22", done: true },
-      { label: "Picked up", time: "2026-04-22 09:01", done: true },
-      { label: "In transit", time: "2026-04-22 09:30", done: true },
-      { label: "Delivered", time: "—", done: false },
-    ],
-  },
-  {
-    id: "ORD-10299",
-    sender: "Kano Foods Co.",
-    receiver: "Bola Salami",
-    rider: "Unassigned",
-    pickup: "8 Ahmadu Bello Way, Kano",
-    dropoff: "120 Murtala Muhammed Way, Kano",
-    amount: 3200,
-    status: "pending",
-    created: "2026-04-22 08:42",
-    timeline: [
-      { label: "Order placed", time: "2026-04-22 08:42", done: true },
-      { label: "Awaiting assignment", time: "—", done: false },
-    ],
-  },
-  {
-    id: "ORD-10300",
-    sender: "Lagos Mart Ventures",
-    receiver: "Chinedu Eze",
-    rider: "Tunde Ade",
-    pickup: "5 Awolowo Rd, Ikoyi, Lagos",
-    dropoff: "27 Lekki Phase 1, Lagos",
-    amount: 6800,
-    status: "delivered",
-    created: "2026-04-21 14:02",
-    timeline: [
-      { label: "Order placed", time: "2026-04-21 14:02", done: true },
-      { label: "Assigned to rider", time: "2026-04-21 14:07", done: true },
-      { label: "Picked up", time: "2026-04-21 14:35", done: true },
-      { label: "In transit", time: "2026-04-21 14:40", done: true },
-      { label: "Delivered", time: "2026-04-21 15:21", done: true },
-    ],
-  },
-  {
-    id: "ORD-10301",
-    sender: "Sunde Logistics Ltd",
-    receiver: "Ifeanyi Johnson",
-    rider: "Sani Garba",
-    pickup: "Mile 2, Apapa, Lagos",
-    dropoff: "Agege, Lagos",
-    amount: 5500,
-    status: "failed",
-    created: "2026-04-21 09:11",
-    timeline: [
-      { label: "Order placed", time: "2026-04-21 09:11", done: true },
-      { label: "Assigned to rider", time: "2026-04-21 09:25", done: true },
-      { label: "Picked up", time: "2026-04-21 09:58", done: true },
-      {
-        label: "Delivery failed — receiver unreachable",
-        time: "2026-04-21 12:42",
-        done: true,
-      },
-    ],
-  },
-  {
-    id: "ORD-10302",
-    sender: "Kano Foods Co.",
-    receiver: "Faith Adekunle",
-    rider: "Ibrahim Yusuf",
-    pickup: "Sabon Gari, Kano",
-    dropoff: "Tudun Wada, Kano",
-    amount: 2800,
-    status: "assigned",
-    created: "2026-04-22 09:01",
-    timeline: [
-      { label: "Order placed", time: "2026-04-22 09:01", done: true },
-      { label: "Assigned to rider", time: "2026-04-22 09:11", done: true },
-      { label: "Awaiting pickup", time: "—", done: false },
-    ],
-  },
-  {
-    id: "ORD-10303",
-    sender: "Lagos Mart Ventures",
-    receiver: "Tobi Olarinde",
-    rider: "Emeka Onuoha",
-    pickup: "Yaba, Lagos",
-    dropoff: "Lekki Phase 2, Lagos",
-    amount: 7200,
-    status: "picked_up",
-    created: "2026-04-22 07:50",
-    timeline: [
-      { label: "Order placed", time: "2026-04-22 07:50", done: true },
-      { label: "Assigned to rider", time: "2026-04-22 08:00", done: true },
-      { label: "Picked up", time: "2026-04-22 08:31", done: true },
-      { label: "In transit", time: "—", done: false },
-    ],
-  },
-];
+const normalizeStatus = (status) => {
+  const value = String(status || "").toUpperCase();
+  return {
+    PENDING: "pending",
+    "RIDER-ASSIGNED": "assigned",
+    RIDER_ASSIGNED: "assigned",
+    "PICKED-UP": "picked_up",
+    PICKED_UP: "picked_up",
+    "OUT-FOR-DELIVERY": "in_transit",
+    OUT_FOR_DELIVERY: "in_transit",
+    SHIPPED: "in_transit",
+    DELIVERED: "delivered",
+    "CREATION-FAILED": "failed",
+    CREATION_FAILED: "failed",
+    RETURNED: "failed",
+  }[value] || String(status || "pending").toLowerCase();
+};
 
-const RANGES = [
-  { key: "daily", label: "Today" },
-  { key: "weekly", label: "This Week" },
-  { key: "monthly", label: "This Month" },
-];
+const mapDelivery = (item) => ({
+  id: item?.order_id || item?.id || "—",
+  saleId: item?.id || item?.sale_id,
+  sender: item?.vendor_name || item?.sender_name || "—",
+  receiver: item?.receiver_name || "—",
+  rider: item?.rider_name || "Unassigned",
+  pickup: item?.origin_address || item?.pickup_address || "—",
+  dropoff: item?.destination_address || item?.dropoff_address || "—",
+  amount: Number(item?.amount || item?.shipping_fee || 0),
+  status: normalizeStatus(item?.status),
+  created: item?.created_at || "—",
+  timeline: item?.timeline || [],
+});
+
+const mapDeliveryDetail = (data, fallback) => {
+  const parties = data?.parties || {};
+  const route = data?.route || {};
+  const timeline = Array.isArray(data?.timeline)
+    ? data.timeline.map((event) => ({
+        label: event?.event || event?.label || "Delivery update",
+        time: event?.timestamp || event?.time || "—",
+        done: Boolean(event?.timestamp || event?.done),
+      }))
+    : fallback.timeline;
+
+  return {
+    ...fallback,
+    id: data?.order_id || fallback.id,
+    sender: parties.vendor_name || fallback.sender,
+    receiver: parties.receiver_name || fallback.receiver,
+    rider: parties.rider_name || fallback.rider,
+    pickup: route.pickup_address || fallback.pickup,
+    dropoff: route.dropoff_address || fallback.dropoff,
+    amount: Number(data?.amount ?? fallback.amount),
+    status: normalizeStatus(data?.current_status || fallback.status),
+    created: data?.created_at || fallback.created,
+    timeline,
+  };
+};
 
 const LogisticsDashboard = () => {
+  const { selectedDates } = useDateContext();
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [range, setRange] = useState("daily");
   const [selected, setSelected] = useState(null);
 
+  const overviewUrl = logisticsOverviewUrl(selectedDates);
+  const deliveriesUrl = logisticsDeliveriesUrl(
+    statusFilter,
+    selectedDates,
+    1,
+    100,
+  );
+  const { data: overviewData, isLoading: overviewLoading } = useFetchData(
+    ["logisticsOverview", overviewUrl],
+    overviewUrl,
+  );
+  const { data: deliveriesData, isLoading: deliveriesLoading } = useFetchData(
+    ["logisticsDeliveries", deliveriesUrl],
+    deliveriesUrl,
+  );
+  const detailUrl = selected?.saleId
+    ? logisticsDeliveryDetailUrl(selected.saleId)
+    : "";
+  const { data: detailData } = useFetchData(
+    ["logisticsDeliveryDetail", detailUrl],
+    detailUrl,
+    { enabled: Boolean(detailUrl) },
+  );
+  const selectedDetail = selected
+    ? mapDeliveryDetail(detailData, selected)
+    : null;
+
+  const deliveries = useMemo(() => {
+    const raw =
+      deliveriesData?.data ||
+      deliveriesData?.results ||
+      (Array.isArray(deliveriesData) ? deliveriesData : []);
+    return Array.isArray(raw) ? raw.map(mapDelivery) : [];
+  }, [deliveriesData]);
+
   const filtered = useMemo(() => {
-    return SAMPLE_DELIVERIES.filter((row) => {
-      const matchStatus =
-        statusFilter === "all" ? true : row.status === statusFilter;
+    return deliveries.filter((row) => {
       const matchSearch = search
         ? [row.id, row.sender, row.receiver, row.rider]
             .join(" ")
             .toLowerCase()
             .includes(search.toLowerCase())
         : true;
-      return matchStatus && matchSearch;
+      return matchSearch;
     });
-  }, [statusFilter, search]);
+  }, [deliveries, search]);
 
   const counts = useMemo(() => {
-    const total = SAMPLE_DELIVERIES.length;
-    const active = SAMPLE_DELIVERIES.filter((d) =>
+    const metrics = overviewData?.metrics || {};
+    const active = deliveries.filter((d) =>
       ["assigned", "picked_up", "in_transit"].includes(d.status)
     ).length;
-    const completed = SAMPLE_DELIVERIES.filter(
+    const completed = deliveries.filter(
       (d) => d.status === "delivered"
     ).length;
-    const failed = SAMPLE_DELIVERIES.filter(
+    const failed = deliveries.filter(
       (d) => d.status === "failed"
     ).length;
-    const revenue = SAMPLE_DELIVERIES.filter(
+    const revenue = deliveries.filter(
       (d) => d.status === "delivered"
     ).reduce((acc, d) => acc + d.amount, 0);
-    return { total, active, completed, failed, revenue };
-  }, []);
+    return {
+      total: metrics.total_deliveries ?? deliveriesData?.total_count ?? deliveries.length,
+      active: metrics.active_deliveries ?? active,
+      completed: metrics.completed_deliveries ?? completed,
+      failed: metrics.failed_deliveries ?? failed,
+      revenue: metrics.revenue ?? revenue,
+    };
+  }, [deliveries, deliveriesData, overviewData]);
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -258,28 +245,8 @@ const LogisticsDashboard = () => {
             Track deliveries from order placement to drop-off in real time.
           </p>
         </div>
-        <div className="flex gap-2">
-          {RANGES.map((r) => {
-            const active = range === r.key;
-            return (
-              <Button
-                key={r.key}
-                onClick={() => setRange(r.key)}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 600,
-                  border: active ? "1px solid #02981D" : "1px solid #E3E3E3",
-                  color: active ? "#02981D" : "#5E5E5E",
-                  background: active ? "#F6FFF8" : "#fff",
-                  "&:hover": {
-                    background: active ? "#F6FFF8" : "#F5F5F5",
-                  },
-                }}
-              >
-                {r.label}
-              </Button>
-            );
-          })}
+        <div className="flex items-center gap-2">
+          <SelectDate />
         </div>
       </div>
 
@@ -292,9 +259,7 @@ const LogisticsDashboard = () => {
             bg="#E6F7EA"
             label="Total Deliveries"
             value={counts.total}
-            subtitle={`This ${
-              range === "daily" ? "day" : range === "weekly" ? "week" : "month"
-            }`}
+            subtitle="Selected date range"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
@@ -407,7 +372,13 @@ const LogisticsDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {deliveriesLoading || overviewLoading ? (
+                  <tr>
+                    <td colSpan={7} className="py-10 text-center">
+                      <CircularProgress size={24} sx={{ color: "#02981D" }} />
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
                   <tr>
                     <td
                       colSpan={7}
@@ -496,15 +467,25 @@ const LogisticsDashboard = () => {
         style="w-[95%] md:w-3/5 lg:w-1/2"
       >
         {selected && (
-          <DeliveryDetail row={selected} close={() => setSelected(null)} />
+          <DeliveryDetail
+            row={selectedDetail}
+            loading={!detailData}
+            close={() => setSelected(null)}
+          />
         )}
       </CustomModal>
     </div>
   );
 };
 
-const DeliveryDetail = ({ row, close }) => (
+const DeliveryDetail = ({ row, loading, close }) => (
   <div className="flex flex-col gap-4">
+    {loading ? (
+      <div className="flex justify-center py-10">
+        <CircularProgress size={28} sx={{ color: "#02981D" }} />
+      </div>
+    ) : (
+      <>
     <div className="flex items-start justify-between">
       <div>
         <p className="text-[18px] font-semibold text-general">{row.id}</p>
@@ -631,6 +612,8 @@ const DeliveryDetail = ({ row, close }) => (
         Done
       </Button>
     </div>
+      </>
+    )}
   </div>
 );
 
