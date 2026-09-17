@@ -19,6 +19,10 @@ const useFetchData = (queryKey, apiUrl, options = {}) => {
       });
       return response.data;
     } catch (error) {
+      // Keep the axios error when the server answered, so callers can read the
+      // status code / payload and show a meaningful message. Network-level
+      // failures still surface the generic message.
+      if (error?.response) throw error;
       throw new Error("Failed to fetch data");
     }
   };

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -10,9 +10,11 @@ import {
   Divider,
   Grid,
   InputAdornment,
+  MenuItem,
   Tab,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import {
@@ -23,36 +25,23 @@ import {
   AutorenewOutlined as RetryIcon,
   ChevronRightRounded as ChevronRightIcon,
   HistoryOutlined as HistoryIcon,
+  VerifiedOutlined as CheckBadgeIcon,
 } from "@mui/icons-material";
 import CustomModal from "../../components/CustomModal";
+import { CustomPagination } from "../../components/CustomPagination";
+import useFetchData from "../../hooks/useFetchData";
+import { kycListUrl } from "../../api/endpoint";
 import KYCAuditLog from "./KYCAuditLog";
-import { SAMPLE_DATA } from "./kycData";
+import {
+  KYC_STATUS_FILTERS,
+  KYC_TYPE_TABS,
+  StatusPill,
+  formatSubmitted,
+  kycErrorMessage,
+  segmentOf,
+} from "./kycShared";
 
-const STATUS_FILTERS = [
-  { key: "all", label: "All" },
-  { key: "pending", label: "Pending" },
-  { key: "approved", label: "Approved" },
-  { key: "rejected", label: "Rejected" },
-  { key: "re-upload", label: "Re-upload Requested" },
-];
-
-const StatusPill = ({ status }) => {
-  const style = {
-    pending: { bg: "#FFF7E8", color: "#B26A00", label: "Pending" },
-    approved: { bg: "#E6F7EA", color: "#02981D", label: "Approved" },
-    rejected: { bg: "#FDECEC", color: "#DC3545", label: "Rejected" },
-    "re-upload": { bg: "#EEF2FF", color: "#3949AB", label: "Re-upload" },
-  }[status] || { bg: "#F5F5F5", color: "#5E5E5E", label: status };
-
-  return (
-    <span
-      className="text-[12px] font-medium px-3 py-1 rounded-full"
-      style={{ background: style.bg, color: style.color }}
-    >
-      {style.label}
-    </span>
-  );
-};
+const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   <Card
@@ -83,38 +72,67 @@ const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   </Card>
 );
 
+// BVN / NIN arrive already masked ("222****5678") or as "Verified" /
+// "Not Provided" strings, so they are rendered verbatim next to the badge.
+const IdentityCell = ({ label, value, verified }) => (
+  <span className="flex items-center gap-1">
+    <span className={verified ? "text-general" : "text-primary_grey_2"}>
+      {label}: {value || "Not Provided"}
+    </span>
+    {verified && (
+      <Tooltip title={`${label} verified`}>
+        <CheckBadgeIcon sx={{ color: "#02981D", fontSize: 15 }} />
+      </Tooltip>
+    )}
+  </span>
+);
+
 const KYCManagement = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState(0);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [auditOpen, setAuditOpen] = useState(false);
-  const [loading] = useState(false);
 
-  const segment = tab === 0 ? "individual" : "business";
-  const data = SAMPLE_DATA[segment];
+  const typeFilter = KYC_TYPE_TABS[tab].key;
 
-  const filtered = useMemo(() => {
-    return data.filter((row) => {
-      const matchesStatus =
-        statusFilter === "all" ? true : row.status === statusFilter;
-      const matchesSearch = search
-        ? row.name.toLowerCase().includes(search.toLowerCase()) ||
-          row.email?.toLowerCase().includes(search.toLowerCase())
-        : true;
-      return matchesStatus && matchesSearch;
-    });
-  }, [data, statusFilter, search]);
+  // Debounce the search box so typing does not fire a request per keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 500);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const counts = useMemo(() => {
-    const all = [...SAMPLE_DATA.individual, ...SAMPLE_DATA.business];
-    return {
-      pending: all.filter((r) => r.status === "pending").length,
-      approved: all.filter((r) => r.status === "approved").length,
-      rejected: all.filter((r) => r.status === "rejected").length,
-      reupload: all.filter((r) => r.status === "re-upload").length,
-    };
-  }, []);
+  // Any filter change goes back to page 1 — a narrower filter can otherwise
+  // leave us parked on a page that no longer exists.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, typeFilter, debouncedSearch, pageSize]);
+
+  const apiUrl = kycListUrl(
+    currentPage,
+    pageSize,
+    statusFilter,
+    typeFilter,
+    debouncedSearch,
+  );
+
+  const { data, error, isLoading } = useFetchData(
+    ["fetchKycList", apiUrl],
+    apiUrl,
+  );
+
+  const rows = useMemo(() => data?.data || [], [data]);
+  const metrics = data?.metrics || {};
+  const totalPages = Math.max(
+    1,
+    data?.pages || Math.ceil((data?.total || rows.length) / pageSize) || 1,
+  );
+
+  const openDetail = (row) =>
+    navigate(`/kyc/${segmentOf(row.account_type)}/${row.id}`);
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -125,7 +143,7 @@ const KYCManagement = () => {
             KYC Management
           </h1>
           <p className="text-[13px] text-primary_grey_2 mt-1">
-            Review, approve, and audit user identity verifications.
+            Review, approve, and audit merchant identity verifications.
           </p>
         </div>
         <Button
@@ -145,7 +163,7 @@ const KYCManagement = () => {
         </Button>
       </div>
 
-      {/* Stats */}
+      {/* Metrics — server-side counts, unaffected by the active filter */}
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
@@ -153,7 +171,7 @@ const KYCManagement = () => {
             color="#B26A00"
             bg="#FFF7E8"
             label="Pending Verifications"
-            value={counts.pending}
+            value={metrics.pending_count ?? "—"}
             subtitle="Awaiting review"
           />
         </Grid>
@@ -163,8 +181,8 @@ const KYCManagement = () => {
             color="#02981D"
             bg="#E6F7EA"
             label="Approved"
-            value={counts.approved}
-            subtitle="Verified accounts"
+            value={metrics.approved_count ?? "—"}
+            subtitle="Live on Tier 3"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -173,7 +191,7 @@ const KYCManagement = () => {
             color="#DC3545"
             bg="#FDECEC"
             label="Rejected"
-            value={counts.rejected}
+            value={metrics.rejected_count ?? "—"}
             subtitle="Failed verification"
           />
         </Grid>
@@ -183,8 +201,8 @@ const KYCManagement = () => {
             color="#3949AB"
             bg="#EEF2FF"
             label="Re-upload Requested"
-            value={counts.reupload}
-            subtitle="Awaiting user action"
+            value={metrics.reupload_count ?? "—"}
+            subtitle="Awaiting merchant action"
           />
         </Grid>
       </Grid>
@@ -198,15 +216,11 @@ const KYCManagement = () => {
         }}
       >
         <CardContent sx={{ p: { xs: 2, md: 3 } }}>
-          {/* Tabs */}
+          {/* Account-type tabs */}
           <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
             <Tabs
               value={tab}
-              onChange={(_, v) => {
-                setTab(v);
-                setStatusFilter("all");
-                setSearch("");
-              }}
+              onChange={(_, v) => setTab(v)}
               variant="scrollable"
               sx={{
                 "& .MuiTab-root": {
@@ -219,8 +233,9 @@ const KYCManagement = () => {
                 "& .MuiTabs-indicator": { backgroundColor: "#02981D" },
               }}
             >
-              <Tab label="Individual" />
-              <Tab label="Business" />
+              {KYC_TYPE_TABS.map((t) => (
+                <Tab key={t.key} label={t.label} />
+              ))}
             </Tabs>
           </Box>
 
@@ -229,11 +244,7 @@ const KYCManagement = () => {
             <TextField
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={
-                segment === "individual"
-                  ? "Search by name or email"
-                  : "Search by business name or email"
-              }
+              placeholder="Search by name, email, phone or account number"
               size="small"
               fullWidth
               sx={{ maxWidth: { lg: 380 } }}
@@ -246,8 +257,8 @@ const KYCManagement = () => {
               }}
             />
 
-            <div className="flex flex-wrap gap-2">
-              {STATUS_FILTERS.map((f) => {
+            <div className="flex flex-wrap items-center gap-2">
+              {KYC_STATUS_FILTERS.map((f) => {
                 const active = statusFilter === f.key;
                 return (
                   <Chip
@@ -268,73 +279,100 @@ const KYCManagement = () => {
                   />
                 );
               })}
+              <TextField
+                select
+                size="small"
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                sx={{ width: 110 }}
+              >
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <MenuItem key={n} value={n}>
+                    {n} / page
+                  </MenuItem>
+                ))}
+              </TextField>
             </div>
           </div>
+
+          {error && (
+            <Typography sx={{ color: "#DC3545", fontSize: 13, mb: 2 }}>
+              {kycErrorMessage(error, "Unable to load KYC verifications.")}
+            </Typography>
+          )}
 
           {/* Table — desktop */}
           <div className="hidden md:block w-full overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[12px] uppercase tracking-wide text-primary_grey_2 border-b border-[#EFEFEF]">
-                  <th className="py-3 px-3">User</th>
-                  <th className="py-3 px-3">
-                    {segment === "individual" ? "BVN / NIN" : "RC / TIN"}
-                  </th>
+                  <th className="py-3 px-3">Merchant</th>
+                  <th className="py-3 px-3">Account</th>
+                  <th className="py-3 px-3">BVN / NIN</th>
+                  <th className="py-3 px-3">Tier</th>
                   <th className="py-3 px-3">Submitted</th>
                   <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center">
+                    <td colSpan={7} className="py-10 text-center">
                       <CircularProgress sx={{ color: "#02981D" }} />
                     </td>
                   </tr>
-                ) : filtered.length === 0 ? (
+                ) : rows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={7}
                       className="py-10 text-center text-primary_grey_2"
                     >
                       No verifications match the current filter.
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((row) => (
+                  rows.map((row) => (
                     <tr
                       key={row.id}
                       className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA] cursor-pointer"
-                      onClick={() => navigate(`/kyc/${segment}/${row.id}`)}
+                      onClick={() => openDetail(row)}
                     >
                       <td className="py-4 px-3">
                         <p className="text-[14px] font-medium text-general">
-                          {row.name}
+                          {row.full_name || "—"}
                         </p>
                         <p className="text-[12px] text-primary_grey_2">
-                          {row.email}
+                          {row.email || row.phone || "—"}
                         </p>
                       </td>
                       <td className="py-4 px-3 text-[13px] text-general">
-                        {segment === "individual" ? (
-                          <div className="flex flex-col">
-                            <span>BVN: {row.bvn}</span>
-                            <span className="text-primary_grey_2">
-                              NIN: {row.nin}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col">
-                            <span>RC: {row.rcNumber}</span>
-                            <span className="text-primary_grey_2">
-                              TIN: {row.tin}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex flex-col">
+                          <span>{row.account_number || "—"}</span>
+                          <span className="text-primary_grey_2">
+                            {row.account_name || row.account_type}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-3 text-[13px]">
+                        <div className="flex flex-col gap-0.5">
+                          <IdentityCell
+                            label="BVN"
+                            value={row.bvn}
+                            verified={row.bvn_verified}
+                          />
+                          <IdentityCell
+                            label="NIN"
+                            value={row.nin}
+                            verified={row.nin_verified}
+                          />
+                        </div>
                       </td>
                       <td className="py-4 px-3 text-[13px] text-general">
-                        {row.submitted}
+                        {row.tier || "—"}
+                      </td>
+                      <td className="py-4 px-3 text-[13px] text-general">
+                        {formatSubmitted(row.submitted_at)}
                       </td>
                       <td className="py-4 px-3">
                         <StatusPill status={row.status} />
@@ -351,35 +389,49 @@ const KYCManagement = () => {
 
           {/* Card list — mobile */}
           <div className="md:hidden flex flex-col gap-3">
-            {filtered.map((row) => (
-              <div
-                key={row.id}
-                onClick={() => setSelected(row)}
-                className="border border-[#EFEFEF] rounded-xl p-4 active:bg-[#FAFAFA]"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-[14px] font-medium text-general">
-                      {row.name}
-                    </p>
-                    <p className="text-[12px] text-primary_grey_2">
-                      {row.email}
-                    </p>
-                  </div>
-                  <StatusPill status={row.status} />
-                </div>
-                <Divider sx={{ my: 1.5 }} />
-                <div className="flex items-center justify-between text-[12px] text-primary_grey_2">
-                  <span>
-                    {segment === "individual"
-                      ? `BVN: ${row.bvn}`
-                      : `RC: ${row.rcNumber}`}
-                  </span>
-                  <span>Submitted {row.submitted}</span>
-                </div>
+            {isLoading ? (
+              <div className="py-10 flex justify-center">
+                <CircularProgress sx={{ color: "#02981D" }} />
               </div>
-            ))}
+            ) : rows.length === 0 ? (
+              <p className="py-10 text-center text-[13px] text-primary_grey_2">
+                No verifications match the current filter.
+              </p>
+            ) : (
+              rows.map((row) => (
+                <div
+                  key={row.id}
+                  onClick={() => openDetail(row)}
+                  className="border border-[#EFEFEF] rounded-xl p-4 active:bg-[#FAFAFA]"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[14px] font-medium text-general">
+                        {row.full_name || "—"}
+                      </p>
+                      <p className="text-[12px] text-primary_grey_2">
+                        {row.email || row.phone || "—"}
+                      </p>
+                    </div>
+                    <StatusPill status={row.status} />
+                  </div>
+                  <Divider sx={{ my: 1.5 }} />
+                  <div className="flex items-center justify-between text-[12px] text-primary_grey_2">
+                    <span>{row.account_number || row.account_type}</span>
+                    <span>Submitted {formatSubmitted(row.submitted_at)}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
+
+          {!isLoading && rows.length > 0 && totalPages > 1 && (
+            <CustomPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </CardContent>
       </Card>
 

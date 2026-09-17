@@ -413,3 +413,38 @@ export const engagementAudienceEstimateUrl = () =>
 // If template_id is provided, message_body should be null.
 export const engagementBroadcastUrl = () =>
   `${ENGAGEMENT_BASE}/engagement/broadcast/`;
+
+// ─────────── KYC verification (admin) ───────────
+// All under /api/v1/ (the AuthAxios baseURL) — relative paths only.
+// NOTE: the admin account must have role === "manager", otherwise the API 401s.
+
+// GET /kyc/ — paginated list + metrics envelope { metrics, total, page, page_size, pages, data }
+// status_filter: "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "REUPLOAD_REQUESTED"
+// type_filter:   "ALL" | "INDIVIDUAL" | "CORPORATE"
+// search matches full name, email, phone, account number and account name.
+export const kycListUrl = (
+  currentPage,
+  pageSize,
+  statusFilter,
+  typeFilter,
+  searchValue,
+) =>
+  `/kyc/${buildQuery({
+    page: currentPage,
+    page_size: pageSize,
+    status_filter: statusFilter,
+    type_filter: typeFilter,
+    search: searchValue,
+  })}`;
+
+// GET /kyc/{id}/ — full audit view. {id} is the BankAccount UUID from the list row.
+export const kycDetailUrl = (id) => `/kyc/${id}/`;
+
+// POST /kyc/{id}/approve/ — body { note? } — promotes to TIER 3 and activates the wallet
+export const kycApproveUrl = (id) => `/kyc/${id}/approve/`;
+
+// POST /kyc/{id}/reject/ — body { reason } — deactivates the wallet
+export const kycRejectUrl = (id) => `/kyc/${id}/reject/`;
+
+// POST /kyc/{id}/request-reupload/ — body { reason } — wallet stays active, docs unlocked
+export const kycRequestReuploadUrl = (id) => `/kyc/${id}/request-reupload/`;
