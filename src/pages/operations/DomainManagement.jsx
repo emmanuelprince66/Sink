@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Avatar,
@@ -6,168 +6,65 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Grid,
   InputAdornment,
-  Snackbar,
   TextField,
 } from "@mui/material";
 import {
   CheckCircleOutline as ApprovedIcon,
   CloseRounded as CloseIcon,
+  DeleteOutlineRounded as DisconnectIcon,
   ErrorOutline as RejectedIcon,
   LanguageOutlined as DomainIcon,
   OpenInNewRounded as ExternalIcon,
+  RefreshRounded as VerifyIcon,
   SearchOutlined as SearchIcon,
   TaskAltRounded as ReviewIcon,
 } from "@mui/icons-material";
+import { useQueryClient } from "@tanstack/react-query";
 import PropTypes from "prop-types";
+import { notiSuccess } from "../../utils/noti";
+import { AuthAxios } from "../../helpers/axiosInstance";
+import useFetchData from "../../hooks/useFetchData";
+import CustomPagination from "../../components/CustomPagination";
+import {
+  customDomainApproveUrl,
+  customDomainDetailUrl,
+  customDomainDisconnectUrl,
+  customDomainListUrl,
+  customDomainRejectUrl,
+  customDomainVerifyDnsUrl,
+} from "../../api/endpoint";
 
-const INITIAL_BUSINESSES = [
-  {
-    id: "4e2832b9-2dcb-41cf-b346-af54cd6304b0",
-    name: "mycliq",
-    type: "Minimart & Retail",
-    owner: {
-      firstname: "Samson",
-      lastname: "Akinola",
-      email: "popsicool1234@gmail.com",
-      phone: "+2348069482021",
-    },
-    country: "Nigeria",
-    state: "Abia State",
-    city: "Umuahia",
-    street: "3",
-    logo: "https://sync360-bucket.s3.amazonaws.com/business/scaled_1000242646_y2xLf5A.png",
-    store_url: "mycliq",
-    custom_domain: "mycliq.neospringcare.com.ng",
-    custom_domain_approved: false,
-    submitted_at: "2026-09-29T10:42:00Z",
-  },
-  {
-    id: "3f634978-29a1-4c04-9bb8-4eac31bca2d2",
-    name: "Ada's Pantry",
-    type: "Food & Grocery",
-    owner: {
-      firstname: "Ada",
-      lastname: "Okafor",
-      email: "ada.okafor@example.com",
-      phone: "+2348035551212",
-    },
-    country: "Nigeria",
-    state: "Lagos State",
-    city: "Ikeja",
-    street: "14 Allen Avenue",
-    logo: null,
-    store_url: "adaspantry",
-    custom_domain: "shop.adaspantry.ng",
-    custom_domain_approved: false,
-    submitted_at: "2026-10-02T08:15:00Z",
-  },
-  {
-    id: "8a01dbdd-a3e4-42fc-8de2-e896946aa174",
-    name: "Northstar Outfitters",
-    type: "Fashion & Apparel",
-    owner: {
-      firstname: "Mariam",
-      lastname: "Bello",
-      email: "mariam@northstar.example",
-      phone: "+2348092400011",
-    },
-    country: "Nigeria",
-    state: "Kano State",
-    city: "Kano",
-    street: "22 Murtala Way",
-    logo: null,
-    store_url: "northstar",
-    custom_domain: "northstarwear.com",
-    custom_domain_approved: true,
-    submitted_at: "2026-09-18T12:10:00Z",
-  },
-  {
-    id: "38e23796-30d8-4f6c-a628-d3df1af61d33",
-    name: "Green Basket",
-    type: "Food & Grocery",
-    owner: {
-      firstname: "Emeka",
-      lastname: "Nwosu",
-      email: "emeka@greenbasket.example",
-      phone: "+2348021180044",
-    },
-    country: "Nigeria",
-    state: "Enugu State",
-    city: "Enugu",
-    street: "7 New Market Road",
-    logo: null,
-    store_url: "greenbasket",
-    custom_domain: "greenbasket.ng",
-    custom_domain_approved: false,
-    submitted_at: "2026-10-04T14:35:00Z",
-  },
-  {
-    id: "9d4913f7-b8cb-4d43-8edb-dbdc22ebefc1",
-    name: "Luxe Living",
-    type: "Home & Living",
-    owner: {
-      firstname: "Tomiwa",
-      lastname: "Adeyemi",
-      email: "tomiwa@luxeliving.example",
-      phone: "+2348077319012",
-    },
-    country: "Nigeria",
-    state: "Oyo State",
-    city: "Ibadan",
-    street: "2 Ring Road",
-    logo: null,
-    store_url: "luxeliving",
-    custom_domain: "shop.luxeliving.com",
-    custom_domain_approved: true,
-    submitted_at: "2026-09-12T09:20:00Z",
-  },
-  {
-    id: "65807ad1-bda5-4b33-a16f-b95ecde8878f",
-    name: "Daily Dose Pharmacy",
-    type: "Health & Beauty",
-    owner: {
-      firstname: "Chidinma",
-      lastname: "Eze",
-      email: "chidinma@dailydose.example",
-      phone: "+2348067102200",
-    },
-    country: "Nigeria",
-    state: "Anambra State",
-    city: "Awka",
-    street: "31 Zik Avenue",
-    logo: null,
-    store_url: "dailydose",
-    custom_domain: "dailydosepharmacy.ng",
-    custom_domain_approved: false,
-    submitted_at: "2026-10-05T07:50:00Z",
-  },
-];
+const PAGE_SIZE = 10;
 
 const TABS = [
-  { key: "all", label: "All domains" },
-  { key: "pending", label: "Pending review" },
-  { key: "approved", label: "Approved" },
-  { key: "rejected", label: "Rejected" },
+  { key: "ALL", label: "All domains", metric: "businesses_with_domain" },
+  { key: "PENDING", label: "Pending review", metric: "pending_review" },
+  { key: "APPROVED", label: "Approved", metric: "approved" },
+  { key: "REJECTED", label: "Rejected", metric: "rejected" },
 ];
 
-const getDomainStatus = (business) =>
-  business.review_status ||
-  (business.custom_domain_approved ? "approved" : "pending");
-
-const formatDate = (date) => {
-  if (!date) return "—";
-  return new Intl.DateTimeFormat("en-NG", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(date));
+const normalizeStatus = (status, approved) => {
+  const value = String(status || "").trim().toLowerCase();
+  if (value.includes("approv") || (approved && !value.includes("reject"))) {
+    return "approved";
+  }
+  if (value.includes("reject")) return "rejected";
+  return "pending";
 };
+
+const apiErrorMessage = (error, fallback) =>
+  error?.response?.data?.detail ||
+  error?.response?.data?.message ||
+  error?.response?.data?.error ||
+  error?.message ||
+  fallback;
 
 const StatCard = ({ icon, color, bg, label, value, caption }) => (
   <Card
@@ -205,12 +102,13 @@ StatCard.propTypes = {
   caption: PropTypes.string.isRequired,
 };
 
-const DomainStatus = ({ status }) => {
+const DomainStatus = ({ status, approved }) => {
+  const normalized = normalizeStatus(status, approved);
   const styles = {
     pending: { label: "Pending review", bg: "#FFF7E8", color: "#B26A00" },
     approved: { label: "Approved", bg: "#E6F7EA", color: "#02981D" },
     rejected: { label: "Rejected", bg: "#FDECEC", color: "#DC3545" },
-  }[status] || { label: status, bg: "#F5F5F5", color: "#5E5E5E" };
+  }[normalized];
 
   return (
     <Chip
@@ -228,119 +126,197 @@ const DomainStatus = ({ status }) => {
 };
 
 DomainStatus.propTypes = {
-  status: PropTypes.string.isRequired,
+  status: PropTypes.string,
+  approved: PropTypes.bool,
+};
+
+const Detail = ({ label, value }) => (
+  <div className="min-w-0">
+    <p className="text-[11px] text-primary_grey_2">{label}</p>
+    <p className="break-words text-[13px] font-medium text-general">
+      {value || "—"}
+    </p>
+  </div>
+);
+
+Detail.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string,
 };
 
 const DomainManagement = () => {
-  const [businesses, setBusinesses] = useState(INITIAL_BUSINESSES);
-  const [activeTab, setActiveTab] = useState("all");
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState("ALL");
   const [search, setSearch] = useState("");
-  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedBusinessId, setSelectedBusinessId] = useState(null);
   const [decision, setDecision] = useState(null);
-  const [rejectionNote, setRejectionNote] = useState("");
-  const [feedback, setFeedback] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [dnsLoading, setDnsLoading] = useState(false);
+  const [dnsResult, setDnsResult] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const filteredBusinesses = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return businesses.filter((business) => {
-      const status = getDomainStatus(business);
-      const matchesTab = activeTab === "all" || status === activeTab;
-      const matchesSearch =
-        !term ||
-        [
-          business.name,
-          business.custom_domain,
-          business.store_url,
-          business.type,
-          business.owner?.firstname,
-          business.owner?.lastname,
-          business.owner?.email,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(term);
-      return Boolean(business.custom_domain) && matchesTab && matchesSearch;
-    });
-  }, [activeTab, businesses, search]);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-  const metrics = useMemo(() => {
-    const domains = businesses.filter((business) => business.custom_domain);
-    return {
-      total: domains.length,
-      pending: domains.filter((business) => getDomainStatus(business) === "pending")
-        .length,
-      approved: domains.filter(
-        (business) => getDomainStatus(business) === "approved",
-      ).length,
-      rejected: domains.filter(
-        (business) => getDomainStatus(business) === "rejected",
-      ).length,
-    };
-  }, [businesses]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, debouncedSearch]);
 
-  const requestDecision = (status) => {
-    setDecision(status);
-    setRejectionNote("");
+  useEffect(() => {
+    setDnsResult(null);
+  }, [selectedBusinessId]);
+
+  const listUrl = customDomainListUrl(
+    activeTab,
+    debouncedSearch,
+    currentPage,
+    PAGE_SIZE,
+  );
+  const {
+    data: listData,
+    error: listError,
+    isLoading: listLoading,
+    refetch: refetchList,
+  } = useFetchData(["customDomainList", listUrl], listUrl);
+
+  const detailUrl = selectedBusinessId
+    ? customDomainDetailUrl(selectedBusinessId)
+    : "";
+  const {
+    data: detailData,
+    error: detailError,
+    isLoading: detailLoading,
+  } = useFetchData(
+    ["customDomainDetail", selectedBusinessId],
+    detailUrl,
+    { enabled: Boolean(selectedBusinessId) },
+  );
+
+  const rows = Array.isArray(listData?.data) ? listData.data : [];
+  const metrics = listData?.metrics || {};
+  const totalPages = Math.max(
+    1,
+    Number(listData?.pages) ||
+      Math.ceil(Number(listData?.total || 0) / PAGE_SIZE),
+  );
+  const detail = detailData;
+  const detailStatus = normalizeStatus(
+    detail?.status,
+    detail?.custom_domain_approved,
+  );
+
+  const runDnsCheck = async () => {
+    if (!selectedBusinessId) return;
+    setDnsLoading(true);
+    setErrorMessage("");
+    try {
+      const response = await AuthAxios.get(
+        customDomainVerifyDnsUrl(selectedBusinessId),
+      );
+      setDnsResult(response.data);
+    } catch (error) {
+      setErrorMessage(
+        apiErrorMessage(error, "Could not verify the domain DNS records."),
+      );
+    } finally {
+      setDnsLoading(false);
+    }
   };
 
-  const applyDecision = () => {
-    if (!selectedBusiness || !decision) return;
-    if (decision === "rejected" && !rejectionNote.trim()) return;
+  const runAction = async () => {
+    if (!selectedBusinessId || !decision) return;
+    if (decision === "reject" && !rejectionReason.trim()) return;
 
-    setBusinesses((current) =>
-      current.map((business) =>
-        business.id === selectedBusiness.id
-          ? {
-              ...business,
-              review_status: decision,
-              custom_domain_approved: decision === "approved",
-              rejection_note:
-                decision === "rejected" ? rejectionNote.trim() : null,
-            }
-          : business,
-      ),
-    );
-    setSelectedBusiness((current) =>
-      current
-        ? {
-            ...current,
-            review_status: decision,
-            custom_domain_approved: decision === "approved",
-            rejection_note:
-              decision === "rejected" ? rejectionNote.trim() : null,
-          }
-        : current,
-    );
+    setActionLoading(true);
+    setErrorMessage("");
+    try {
+      let response;
+      if (decision === "approve") {
+        response = await AuthAxios.post(
+          customDomainApproveUrl(selectedBusinessId),
+          {},
+        );
+      } else if (decision === "reject") {
+        response = await AuthAxios.post(
+          customDomainRejectUrl(selectedBusinessId),
+          { reason: rejectionReason.trim() },
+        );
+      } else {
+        response = await AuthAxios.post(
+          customDomainDisconnectUrl(selectedBusinessId),
+          {},
+        );
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["customDomainList"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["customDomainDetail", selectedBusinessId],
+        }),
+      ]);
+      setDecision(null);
+      notiSuccess(
+        response.data?.message ||
+          `Domain ${decision === "approve" ? "approved" : decision === "reject" ? "rejected" : "disconnected"} successfully.`,
+      );
+      if (decision === "approve" || decision === "disconnect") {
+        setSelectedBusinessId(null);
+      }
+    } catch (error) {
+      setErrorMessage(
+        apiErrorMessage(error, `Could not ${decision} this custom domain.`),
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const closeReview = () => {
+    if (actionLoading) return;
+    setSelectedBusinessId(null);
+    setErrorMessage("");
     setDecision(null);
-    setFeedback(
-      decision === "approved"
-        ? "Domain approved in this preview."
-        : "Domain rejected in this preview.",
-    );
+  };
+
+  const openReview = (businessId) => {
+    setErrorMessage("");
+    setSelectedBusinessId(businessId);
+  };
+
+  const openDecision = (nextDecision) => {
+    setErrorMessage("");
+    setRejectionReason("");
+    setDecision(nextDecision);
   };
 
   return (
     <div className="w-full flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-[20px] md:text-[22px] font-semibold text-general">
-            Domain Management
-          </h1>
-          <p className="text-[13px] text-primary_grey_2 mt-1">
-            Review custom domains submitted by businesses and manage their approval.
-          </p>
-        </div>
+      <div>
+        <h1 className="text-[20px] md:text-[22px] font-semibold text-general">
+          Domain Management
+        </h1>
+        <p className="text-[13px] text-primary_grey_2 mt-1">
+          Review custom domains submitted by businesses and manage their approval.
+        </p>
       </div>
 
-      <Alert
-        severity="info"
-        icon={<DomainIcon fontSize="inherit" />}
-        sx={{ borderRadius: "10px" }}
-      >
-        Preview screen — this uses sample businesses. Approvals and rejections
-        only update this page temporarily; no backend request is sent.
-      </Alert>
+      {listError && (
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => refetchList()}>
+              Retry
+            </Button>
+          }
+        >
+          {apiErrorMessage(listError, "Could not load custom domains.")}
+        </Alert>
+      )}
 
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={3}>
@@ -349,7 +325,7 @@ const DomainManagement = () => {
             color="#0369A1"
             bg="#E0F2FE"
             label="Custom domains"
-            value={metrics.total}
+            value={metrics.businesses_with_domain ?? "—"}
             caption="Businesses with a domain"
           />
         </Grid>
@@ -359,7 +335,7 @@ const DomainManagement = () => {
             color="#B26A00"
             bg="#FFF7E8"
             label="Pending review"
-            value={metrics.pending}
+            value={metrics.pending_review ?? "—"}
             caption="Awaiting admin decision"
           />
         </Grid>
@@ -369,7 +345,7 @@ const DomainManagement = () => {
             color="#02981D"
             bg="#E6F7EA"
             label="Approved"
-            value={metrics.approved}
+            value={metrics.approved ?? "—"}
             caption="Ready to use"
           />
         </Grid>
@@ -379,7 +355,7 @@ const DomainManagement = () => {
             color="#DC3545"
             bg="#FDECEC"
             label="Rejected"
-            value={metrics.rejected}
+            value={metrics.rejected ?? "—"}
             caption="Needs business follow-up"
           />
         </Grid>
@@ -409,18 +385,14 @@ const DomainManagement = () => {
                 ),
               }}
             />
-            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Domain status">
+            <div className="flex flex-wrap gap-2" aria-label="Domain status filters">
               {TABS.map((tab) => {
                 const active = activeTab === tab.key;
-                const count =
-                  tab.key === "all"
-                    ? metrics.total
-                    : metrics[tab.key];
+                const count = metrics[tab.metric];
                 return (
                   <Button
                     key={tab.key}
-                    role="tab"
-                    aria-selected={active}
+                    aria-pressed={active}
                     onClick={() => setActiveTab(tab.key)}
                     sx={{
                       textTransform: "none",
@@ -433,7 +405,8 @@ const DomainManagement = () => {
                       },
                     }}
                   >
-                    {tab.label} ({count})
+                    {tab.label}
+                    {count !== undefined && ` (${count})`}
                   </Button>
                 );
               })}
@@ -453,74 +426,80 @@ const DomainManagement = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredBusinesses.length ? (
-                  filteredBusinesses.map((business) => {
-                    const status = getDomainStatus(business);
-                    return (
-                      <tr
-                        key={business.id}
-                        className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
-                      >
-                        <td className="py-4 px-3">
-                          <button
-                            className="flex items-center gap-3 text-left"
-                            onClick={() => setSelectedBusiness(business)}
-                          >
-                            <Avatar
-                              src={business.logo || undefined}
-                              alt=""
-                              sx={{
-                                width: 36,
-                                height: 36,
-                                bgcolor: "#E6F7EA",
-                                color: "#02981D",
-                                fontSize: 14,
-                              }}
-                            >
-                              {business.name.slice(0, 1).toUpperCase()}
-                            </Avatar>
-                            <span>
-                              <span className="block text-[13px] font-semibold text-general">
-                                {business.name}
-                              </span>
-                              <span className="block text-[12px] text-primary_grey_2">
-                                {business.type}
-                              </span>
-                            </span>
-                          </button>
-                        </td>
-                        <td className="py-4 px-3 text-[13px] text-general">
-                          {business.custom_domain}
-                        </td>
-                        <td className="py-4 px-3">
-                          <span className="block text-[13px] text-general">
-                            {business.owner.firstname} {business.owner.lastname}
-                          </span>
-                          <span className="block text-[12px] text-primary_grey_2">
-                            {business.owner.email}
-                          </span>
-                        </td>
-                        <td className="py-4 px-3 text-[13px] text-primary_grey_2">
-                          {formatDate(business.submitted_at)}
-                        </td>
-                        <td className="py-4 px-3">
-                          <DomainStatus status={status} />
-                        </td>
-                        <td className="py-4 px-3 text-right">
-                          <Button
-                            onClick={() => setSelectedBusiness(business)}
+                {listLoading ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center">
+                      <CircularProgress size={26} sx={{ color: "#02981D" }} />
+                    </td>
+                  </tr>
+                ) : rows.length ? (
+                  rows.map((business) => (
+                    <tr
+                      key={business.business_id}
+                      className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA]"
+                    >
+                      <td className="py-4 px-3">
+                        <button
+                          className="flex items-center gap-3 text-left"
+                          onClick={() => openReview(business.business_id)}
+                        >
+                          <Avatar
+                            src={business.business_logo || undefined}
+                            alt=""
                             sx={{
+                              width: 36,
+                              height: 36,
+                              bgcolor: "#E6F7EA",
                               color: "#02981D",
-                              textTransform: "none",
-                              fontWeight: 600,
+                              fontSize: 14,
                             }}
                           >
-                            Review
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })
+                            {business.business_name?.slice(0, 1).toUpperCase()}
+                          </Avatar>
+                          <span>
+                            <span className="block text-[13px] font-semibold text-general">
+                              {business.business_name || "—"}
+                            </span>
+                            <span className="block text-[12px] text-primary_grey_2">
+                              {business.store_url || "Business"}
+                            </span>
+                          </span>
+                        </button>
+                      </td>
+                      <td className="py-4 px-3 text-[13px] text-general">
+                        {business.custom_domain || "—"}
+                      </td>
+                      <td className="py-4 px-3">
+                        <span className="block text-[13px] text-general">
+                          {business.owner_name || "—"}
+                        </span>
+                        <span className="block text-[12px] text-primary_grey_2">
+                          {business.owner_email || "—"}
+                        </span>
+                      </td>
+                      <td className="py-4 px-3 text-[13px] text-primary_grey_2">
+                        {business.submitted || "—"}
+                      </td>
+                      <td className="py-4 px-3">
+                        <DomainStatus
+                          status={business.status}
+                          approved={business.custom_domain_approved}
+                        />
+                      </td>
+                      <td className="py-4 px-3 text-right">
+                        <Button
+                          onClick={() => openReview(business.business_id)}
+                          sx={{
+                            color: "#02981D",
+                            textTransform: "none",
+                            fontWeight: 600,
+                          }}
+                        >
+                          View details
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
                 ) : (
                   <tr>
                     <td
@@ -536,17 +515,21 @@ const DomainManagement = () => {
           </div>
 
           <div className="md:hidden flex flex-col gap-3">
-            {filteredBusinesses.length ? (
-              filteredBusinesses.map((business) => (
+            {listLoading ? (
+              <div className="flex justify-center py-10">
+                <CircularProgress size={26} sx={{ color: "#02981D" }} />
+              </div>
+            ) : rows.length ? (
+              rows.map((business) => (
                 <button
-                  key={business.id}
-                  onClick={() => setSelectedBusiness(business)}
+                  key={business.business_id}
+                  onClick={() => openReview(business.business_id)}
                   className="w-full border border-[#EFEFEF] rounded-xl p-4 text-left"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar
-                        src={business.logo || undefined}
+                        src={business.business_logo || undefined}
                         alt=""
                         sx={{
                           width: 36,
@@ -556,21 +539,28 @@ const DomainManagement = () => {
                           fontSize: 14,
                         }}
                       >
-                        {business.name.slice(0, 1).toUpperCase()}
+                        {business.business_name?.slice(0, 1).toUpperCase()}
                       </Avatar>
                       <span className="min-w-0">
                         <span className="block text-[13px] font-semibold text-general">
-                          {business.name}
+                          {business.business_name || "—"}
                         </span>
                         <span className="block truncate text-[12px] text-primary_grey_2">
-                          {business.custom_domain}
+                          {business.custom_domain || "—"}
                         </span>
                       </span>
                     </div>
-                    <DomainStatus status={getDomainStatus(business)} />
+                    <DomainStatus
+                      status={business.status}
+                      approved={business.custom_domain_approved}
+                    />
                   </div>
                   <span className="block text-[12px] text-primary_grey_2 mt-3">
-                    Owner: {business.owner.firstname} {business.owner.lastname}
+                    Owner: {business.owner_name || "—"} ·{" "}
+                    {business.owner_email || "—"}
+                  </span>
+                  <span className="block text-[12px] text-primary_grey_2 mt-1">
+                    Submitted: {business.submitted || "—"}
                   </span>
                 </button>
               ))
@@ -580,22 +570,30 @@ const DomainManagement = () => {
               </p>
             )}
           </div>
+
+          {!listLoading && Number(listData?.pages) > 1 && (
+            <CustomPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </CardContent>
       </Card>
 
       <Dialog
-        open={Boolean(selectedBusiness)}
-        onClose={() => setSelectedBusiness(null)}
+        open={Boolean(selectedBusinessId)}
+        onClose={closeReview}
         fullWidth
         maxWidth="sm"
       >
-        {selectedBusiness && (
+        {selectedBusinessId && (
           <>
             <DialogTitle sx={{ pb: 1 }}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <Avatar
-                    src={selectedBusiness.logo || undefined}
+                    src={detail?.business_logo || undefined}
                     alt=""
                     sx={{
                       width: 44,
@@ -604,20 +602,21 @@ const DomainManagement = () => {
                       color: "#02981D",
                     }}
                   >
-                    {selectedBusiness.name.slice(0, 1).toUpperCase()}
+                    {detail?.business_name?.slice(0, 1).toUpperCase()}
                   </Avatar>
                   <div>
                     <p className="text-[18px] font-semibold text-general">
-                      {selectedBusiness.name}
+                      {detail?.business_name || "Business domain review"}
                     </p>
                     <p className="text-[12px] text-primary_grey_2">
-                      {selectedBusiness.type}
+                      Custom domain verification
                     </p>
                   </div>
                 </div>
                 <Button
                   aria-label="Close business details"
-                  onClick={() => setSelectedBusiness(null)}
+                  onClick={closeReview}
+                  disabled={actionLoading}
                   sx={{ minWidth: 36, color: "#667085" }}
                 >
                   <CloseIcon />
@@ -625,76 +624,168 @@ const DomainManagement = () => {
               </div>
             </DialogTitle>
             <DialogContent dividers>
-              <div className="flex flex-col gap-5 py-1">
-                <div className="rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
-                  <p className="text-[12px] text-primary_grey_2 mb-1">
-                    Requested custom domain
-                  </p>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="break-all text-[15px] font-semibold text-general">
-                      {selectedBusiness.custom_domain}
+              {detailError && (
+                <Alert
+                  severity="error"
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() =>
+                        queryClient.invalidateQueries({
+                          queryKey: ["customDomainDetail", selectedBusinessId],
+                        })
+                      }
+                    >
+                      Retry
+                    </Button>
+                  }
+                  sx={{ mb: 2 }}
+                >
+                  {apiErrorMessage(detailError, "Could not load domain details.")}
+                </Alert>
+              )}
+              {errorMessage && (
+                <Alert
+                  severity="error"
+                  onClose={() => setErrorMessage("")}
+                  sx={{ mb: 2 }}
+                >
+                  {errorMessage}
+                </Alert>
+              )}
+              {detailLoading ? (
+                <div className="flex justify-center py-12">
+                  <CircularProgress size={28} sx={{ color: "#02981D" }} />
+                </div>
+              ) : detail ? (
+                <div className="flex flex-col gap-5 py-1">
+                  <div className="rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
+                    <p className="text-[12px] text-primary_grey_2 mb-1">
+                      Requested custom domain
                     </p>
-                    <ExternalIcon sx={{ color: "#667085", flex: "none" }} />
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="break-all text-[15px] font-semibold text-general">
+                        {detail.custom_domain || "—"}
+                      </p>
+                      <ExternalIcon sx={{ color: "#667085", flex: "none" }} />
+                    </div>
+                    <div className="mt-3">
+                      <DomainStatus
+                        status={detail.status}
+                        approved={detail.custom_domain_approved}
+                      />
+                    </div>
                   </div>
-                  <div className="mt-3">
-                    <DomainStatus status={getDomainStatus(selectedBusiness)} />
+
+                  <div>
+                    <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
+                      Business details
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                      <Detail label="Store URL" value={detail.store_url} />
+                      <Detail label="Business ID" value={detail.business_id} />
+                      <Detail label="Owner" value={detail.owner_name} />
+                      <Detail label="Email" value={detail.owner_email} />
+                      <Detail label="Phone" value={detail.owner_phone} />
+                      <Detail label="Submitted" value={detail.submitted} />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-[#EFEFEF] p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="text-[13px] font-semibold text-general">
+                          DNS verification
+                        </p>
+                        <p className="text-[12px] text-primary_grey_2 mt-1">
+                          Check that this domain points to Sync360 before approval.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={runDnsCheck}
+                        disabled={dnsLoading}
+                        variant="outlined"
+                        startIcon={
+                          dnsLoading ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            <VerifyIcon />
+                          )
+                        }
+                        sx={{
+                          textTransform: "none",
+                          color: "#02981D",
+                          borderColor: "#02981D",
+                          flex: "none",
+                        }}
+                      >
+                        {dnsLoading ? "Checking..." : "Verify DNS"}
+                      </Button>
+                    </div>
+                    {(dnsResult || detail.dns_verification) && (
+                      <DnsResult
+                        result={dnsResult || detail.dns_verification}
+                      />
+                    )}
                   </div>
                 </div>
-
-                <div>
-                  <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-3">
-                    Business details
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-                    <Detail label="Store URL" value={selectedBusiness.store_url} />
-                    <Detail label="Business type" value={selectedBusiness.type} />
-                    <Detail
-                      label="Owner"
-                      value={`${selectedBusiness.owner.firstname} ${selectedBusiness.owner.lastname}`}
-                    />
-                    <Detail label="Email" value={selectedBusiness.owner.email} />
-                    <Detail label="Phone" value={selectedBusiness.owner.phone} />
-                    <Detail
-                      label="Location"
-                      value={`${selectedBusiness.city}, ${selectedBusiness.state}`}
-                    />
-                    <Detail
-                      label="Submitted"
-                      value={formatDate(selectedBusiness.submitted_at)}
-                    />
-                  </div>
-                </div>
-
-                {selectedBusiness.rejection_note && (
-                  <Alert severity="error">
-                    Previous review note: {selectedBusiness.rejection_note}
-                  </Alert>
-                )}
-              </div>
+              ) : null}
             </DialogContent>
-            <DialogActions sx={{ p: 2, justifyContent: "space-between" }}>
+            <DialogActions
+              sx={{
+                p: 2,
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 1,
+              }}
+            >
               <Button
-                onClick={() => requestDecision("rejected")}
-                disabled={getDomainStatus(selectedBusiness) === "rejected"}
-                startIcon={<RejectedIcon />}
-                sx={{ color: "#DC3545", textTransform: "none" }}
+                onClick={() => openDecision("disconnect")}
+                disabled={
+                  !detail?.custom_domain ||
+                  actionLoading ||
+                  detailLoading
+                }
+                startIcon={<DisconnectIcon />}
+                sx={{ color: "#667085", textTransform: "none" }}
               >
-                Reject domain
+                Disconnect
               </Button>
-              <Button
-                onClick={() => requestDecision("approved")}
-                disabled={getDomainStatus(selectedBusiness) === "approved"}
-                variant="contained"
-                startIcon={<ApprovedIcon />}
-                sx={{
-                  background: "#02981D",
-                  textTransform: "none",
-                  boxShadow: "none",
-                  "&:hover": { background: "#017A17", boxShadow: "none" },
-                }}
-              >
-                Approve domain
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => openDecision("reject")}
+                  disabled={
+                    !detail ||
+                    detailStatus === "rejected" ||
+                    actionLoading ||
+                    detailLoading
+                  }
+                  startIcon={<RejectedIcon />}
+                  sx={{ color: "#DC3545", textTransform: "none" }}
+                >
+                  Reject
+                </Button>
+                <Button
+                  onClick={() => openDecision("approve")}
+                  disabled={
+                    !detail ||
+                    detailStatus === "approved" ||
+                    actionLoading ||
+                    detailLoading
+                  }
+                  variant="contained"
+                  startIcon={<ApprovedIcon />}
+                  sx={{
+                    background: "#02981D",
+                    textTransform: "none",
+                    boxShadow: "none",
+                    "&:hover": { background: "#017A17", boxShadow: "none" },
+                  }}
+                >
+                  Approve
+                </Button>
+              </div>
             </DialogActions>
           </>
         )}
@@ -702,23 +793,29 @@ const DomainManagement = () => {
 
       <Dialog
         open={Boolean(decision)}
-        onClose={() => setDecision(null)}
+        onClose={() => !actionLoading && setDecision(null)}
         fullWidth
         maxWidth="xs"
       >
         <DialogTitle>
-          {decision === "approved" ? "Approve custom domain?" : "Reject custom domain?"}
+          {decision === "approve"
+            ? "Approve custom domain?"
+            : decision === "reject"
+              ? "Reject custom domain?"
+              : "Disconnect custom domain?"}
         </DialogTitle>
         <DialogContent>
           <p className="text-[13px] text-primary_grey_2 mb-4">
-            {decision === "approved"
-              ? `This preview will mark ${selectedBusiness?.custom_domain} as approved.`
-              : `This preview will mark ${selectedBusiness?.custom_domain} as rejected. Add a reason for the business record.`}
+            {decision === "approve"
+              ? `Approve ${detail?.custom_domain}? This will trigger domain setup and notify the business.`
+              : decision === "reject"
+                ? `Reject ${detail?.custom_domain}? A reason will be sent to the business.`
+                : `Remove ${detail?.custom_domain} from this business and disconnect its domain alias?`}
           </p>
-          {decision === "rejected" && (
+          {decision === "reject" && (
             <TextField
-              value={rejectionNote}
-              onChange={(event) => setRejectionNote(event.target.value)}
+              value={rejectionReason}
+              onChange={(event) => setRejectionReason(event.target.value)}
               label="Rejection reason"
               placeholder="Explain what needs to be corrected"
               multiline
@@ -731,57 +828,82 @@ const DomainManagement = () => {
         <DialogActions sx={{ p: 2 }}>
           <Button
             onClick={() => setDecision(null)}
+            disabled={actionLoading}
             sx={{ textTransform: "none", color: "#5E5E5E" }}
           >
             Cancel
           </Button>
           <Button
-            onClick={applyDecision}
-            disabled={decision === "rejected" && !rejectionNote.trim()}
+            onClick={runAction}
+            disabled={
+              actionLoading ||
+              (decision === "reject" && !rejectionReason.trim())
+            }
             variant="contained"
             sx={{
               textTransform: "none",
-              background: decision === "rejected" ? "#DC3545" : "#02981D",
+              background:
+                decision === "reject" || decision === "disconnect"
+                  ? "#DC3545"
+                  : "#02981D",
               boxShadow: "none",
               "&:hover": {
-                background: decision === "rejected" ? "#B42318" : "#017A17",
+                background:
+                  decision === "reject" || decision === "disconnect"
+                    ? "#B42318"
+                    : "#017A17",
                 boxShadow: "none",
               },
             }}
           >
-            Confirm {decision === "approved" ? "approval" : "rejection"}
+            {actionLoading ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : decision === "approve" ? (
+              "Confirm approval"
+            ) : decision === "reject" ? (
+              "Confirm rejection"
+            ) : (
+              "Confirm disconnect"
+            )}
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Snackbar
-        open={Boolean(feedback)}
-        autoHideDuration={3500}
-        onClose={() => setFeedback("")}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setFeedback("")}
-          severity="success"
-          sx={{ width: "100%" }}
-        >
-          {feedback}
-        </Alert>
-      </Snackbar>
     </div>
   );
 };
 
-const Detail = ({ label, value }) => (
-  <div className="min-w-0">
-    <p className="text-[11px] text-primary_grey_2">{label}</p>
-    <p className="break-words text-[13px] font-medium text-general">{value || "—"}</p>
-  </div>
+const DnsResult = ({ result }) => (
+  <Alert
+    severity={result.is_pointed_correctly ? "success" : "warning"}
+    sx={{ mt: 2 }}
+  >
+    <p className="font-semibold">
+      {result.is_pointed_correctly
+        ? "Domain is pointed correctly"
+        : "DNS not pointed correctly yet"}
+    </p>
+    {result.message && <p>{result.message}</p>}
+    <p className="mt-1 text-[12px]">
+      A records: {(result.a_records || []).join(", ") || "None"} · CNAME:{" "}
+      {(result.cname_records || []).join(", ") || "None"}
+    </p>
+    {result.checked_at && (
+      <p className="text-[11px] mt-1">
+        Checked {new Date(result.checked_at).toLocaleString()}
+      </p>
+    )}
+  </Alert>
 );
 
-Detail.propTypes = {
-  label: PropTypes.string.isRequired,
-  value: PropTypes.string,
+DnsResult.propTypes = {
+  result: PropTypes.shape({
+    is_pointed_correctly: PropTypes.bool,
+    message: PropTypes.string,
+    a_records: PropTypes.arrayOf(PropTypes.string),
+    cname_records: PropTypes.arrayOf(PropTypes.string),
+    checked_at: PropTypes.string,
+  }).isRequired,
 };
 
 export default DomainManagement;

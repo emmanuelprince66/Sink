@@ -128,6 +128,35 @@ export const logisticsDeliveriesUrl = (
 
 export const logisticsDeliveryDetailUrl = (saleId) =>
   `/logistics/deliveries/${saleId}/`;
+
+// Custom domain review endpoints
+export const customDomainListUrl = (
+  statusFilter = "ALL",
+  search = "",
+  page = 1,
+  pageSize = 10,
+) =>
+  `/custom-domain/${buildQuery({
+    status_filter: statusFilter,
+    search,
+    page,
+    page_size: pageSize,
+  })}`;
+
+export const customDomainDetailUrl = (businessId) =>
+  `/custom-domain/${encodeURIComponent(businessId)}/`;
+
+export const customDomainVerifyDnsUrl = (businessId) =>
+  `/custom-domain/${encodeURIComponent(businessId)}/verify-dns/`;
+
+export const customDomainApproveUrl = (businessId) =>
+  `/custom-domain/${encodeURIComponent(businessId)}/approve/`;
+
+export const customDomainRejectUrl = (businessId) =>
+  `/custom-domain/${encodeURIComponent(businessId)}/reject/`;
+
+export const customDomainDisconnectUrl = (businessId) =>
+  `/custom-domain/${encodeURIComponent(businessId)}/disconnect/`;
 export const transactionsDataUrl = (
   currentPage,
   rowsPerPage,
