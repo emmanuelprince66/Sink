@@ -4,6 +4,7 @@ import CardMembershipOutlinedIcon from "@mui/icons-material/CardMembershipOutlin
 import GroupAddOutlinedIcon from "@mui/icons-material/GroupAddOutlined";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import HandshakeOutlinedIcon from "@mui/icons-material/HandshakeOutlined";
+import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
@@ -90,6 +91,15 @@ const SideBar = () => {
     {
       label: "Operations",
       items: [
+        {
+          name: "Domain Management",
+          link: "operations/domains",
+          icon: (active) => (
+            <LanguageOutlinedIcon
+              sx={{ color: active ? "#fff" : "#5E5E5E", fontSize: 20 }}
+            />
+          ),
+        },
         {
           name: "KYC Management",
           link: "kyc",

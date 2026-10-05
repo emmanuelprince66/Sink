@@ -21,6 +21,7 @@ import Investment from "./pages/investments/Investment";
 import KYCDetailPage from "./pages/kyc/KYCDetailPage";
 import KYCManagement from "./pages/kyc/KYCManagement";
 import LogisticsDashboard from "./pages/logistics/LogisticsDashboard";
+import DomainManagement from "./pages/operations/DomainManagement";
 import MemberProfile from "./pages/members/MemberProfile";
 import PaymentsDashboard from "./pages/payments/PaymentsDashboard";
 import Partners from "./pages/partners/Partners";
@@ -81,6 +82,11 @@ const RoutesContainer = () => {
       component: <LogisticsDashboard />,
       path: "/logistics",
       name: "Logistics",
+    },
+    {
+      component: <DomainManagement />,
+      path: "/operations/domains",
+      name: "Domain Management",
     },
     {
       component: <RolesPermissions />,
