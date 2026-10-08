@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  Button,
   Card,
   CardContent,
   CircularProgress,
@@ -9,17 +10,23 @@ import {
   TextField,
 } from "@mui/material";
 import {
+  AutorenewRounded as RefreshIcon,
   SearchOutlined as SearchIcon,
   LocalShippingOutlined as ShippingIcon,
   PaidOutlined as PaidIcon,
 } from "@mui/icons-material";
+import { useQueryClient } from "@tanstack/react-query";
+import PropTypes from "prop-types";
 import FormattedPrice from "../../utils/FormattedPrice";
 import useFetchData from "../../hooks/useFetchData";
 import {
   logisticsDeliveriesUrl,
+  logisticsDeliveryRefreshUrl,
   logisticsOverviewUrl,
 } from "../../api/endpoint";
 import { useDateContext } from "../../utils/DateContext";
+import { AuthAxios } from "../../helpers/axiosInstance";
+import { notiError, notiSuccess } from "../../utils/noti";
 
 // `vendor` / `merchant` may come back as an object or a plain string.
 const nameOf = (v) => {
@@ -29,7 +36,8 @@ const nameOf = (v) => {
 };
 
 const mapTransaction = (item) => ({
-  id: item?.id || item?.order_id,
+  id: item?.order_id || item?.id,
+  saleId: item?.id,
   merchant:
     nameOf(item?.merchant) ||
     item?.merchant_name ||
@@ -46,6 +54,7 @@ const mapTransaction = (item) => ({
     item?.logistics_partner ||
     "—",
   commission: Number(item?.commission ?? item?.commission_amount ?? 0),
+  status: item?.status || "—",
 });
 
 const StatCard = ({ icon, color, bg, label, value, loading }) => (
@@ -80,9 +89,20 @@ const StatCard = ({ icon, color, bg, label, value, loading }) => (
   </Card>
 );
 
+StatCard.propTypes = {
+  icon: PropTypes.node.isRequired,
+  color: PropTypes.string.isRequired,
+  bg: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  value: PropTypes.number.isRequired,
+  loading: PropTypes.bool.isRequired,
+};
+
 const LogisticsTransactions = () => {
+  const queryClient = useQueryClient();
   const { selectedDates } = useDateContext();
   const [search, setSearch] = useState("");
+  const [refreshingSaleId, setRefreshingSaleId] = useState(null);
 
   const overviewUrl = logisticsOverviewUrl(selectedDates);
   const deliveriesUrl = logisticsDeliveriesUrl("all", selectedDates, 1, 100);
@@ -90,7 +110,11 @@ const LogisticsTransactions = () => {
     ["logisticsOverview", overviewUrl],
     overviewUrl,
   );
-  const { data: deliveriesData, isLoading: deliveriesLoading } = useFetchData(
+  const {
+    data: deliveriesData,
+    isLoading: deliveriesLoading,
+    refetch: refetchDeliveries,
+  } = useFetchData(
     ["logisticsDeliveries", deliveriesUrl],
     deliveriesUrl,
   );
@@ -125,6 +149,31 @@ const LogisticsTransactions = () => {
   }, [overviewData, transactions]);
 
   const loading = deliveriesLoading || overviewLoading;
+
+  const refreshStatus = async (row) => {
+    if (!row.saleId || refreshingSaleId) return;
+    setRefreshingSaleId(row.saleId);
+    try {
+      const response = await AuthAxios.post(
+        logisticsDeliveryRefreshUrl(row.saleId),
+      );
+      await Promise.all([
+        refetchDeliveries(),
+        queryClient.invalidateQueries({ queryKey: ["logisticsOverview"] }),
+      ]);
+      notiSuccess(
+        response.data?.message || `Shipment ${row.id} status refreshed.`,
+      );
+    } catch (error) {
+      notiError(
+        error?.response?.data?.detail ||
+          error?.response?.data?.message ||
+          `Could not refresh shipment ${row.id}.`,
+      );
+    } finally {
+      setRefreshingSaleId(null);
+    }
+  };
 
   return (
     <div className="w-full flex flex-col gap-6">
@@ -181,19 +230,21 @@ const LogisticsTransactions = () => {
               <th className="py-3 px-3">Shipping Rate</th>
               <th className="py-3 px-3">Shipping Company</th>
               <th className="py-3 px-3">Commission</th>
+              <th className="py-3 px-3">Status</th>
+              <th className="py-3 px-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} className="py-10 text-center">
+                <td colSpan={6} className="py-10 text-center">
                   <CircularProgress size={24} sx={{ color: "#02981D" }} />
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={6}
                   className="py-10 text-center text-primary_grey_2"
                 >
                   No logistics transactions for the selected period.
@@ -216,6 +267,30 @@ const LogisticsTransactions = () => {
                   </td>
                   <td className="py-4 px-3 text-[13px] font-medium text-[#02981D]">
                     <FormattedPrice amount={row.commission} />
+                  </td>
+                  <td className="py-4 px-3 text-[13px] text-general">
+                    {row.status}
+                  </td>
+                  <td className="py-4 px-3 text-right">
+                    <Button
+                      size="small"
+                      onClick={() => refreshStatus(row)}
+                      disabled={!row.saleId || Boolean(refreshingSaleId)}
+                      startIcon={
+                        refreshingSaleId === row.saleId ? (
+                          <CircularProgress size={14} />
+                        ) : (
+                          <RefreshIcon fontSize="small" />
+                        )
+                      }
+                      sx={{
+                        color: "#02981D",
+                        textTransform: "none",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Refresh status
+                    </Button>
                   </td>
                 </tr>
               ))
@@ -256,6 +331,30 @@ const LogisticsTransactions = () => {
                 <span className="flex gap-1 text-[#02981D] font-medium">
                   Commission: <FormattedPrice amount={row.commission} />
                 </span>
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-[12px] text-primary_grey_2">
+                  Status: {row.status}
+                </span>
+                <Button
+                  size="small"
+                  onClick={() => refreshStatus(row)}
+                  disabled={!row.saleId || Boolean(refreshingSaleId)}
+                  startIcon={
+                    refreshingSaleId === row.saleId ? (
+                      <CircularProgress size={14} />
+                    ) : (
+                      <RefreshIcon fontSize="small" />
+                    )
+                  }
+                  sx={{
+                    color: "#02981D",
+                    textTransform: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Refresh status
+                </Button>
               </div>
             </div>
           ))

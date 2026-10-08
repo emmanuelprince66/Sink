@@ -8,14 +8,16 @@ import {
   Divider,
   Grid,
   InputAdornment,
+  Tab,
+  Tabs,
   TextField,
 } from "@mui/material";
 import {
+  AutorenewRounded as RefreshIcon,
   SearchOutlined as SearchIcon,
   LocalShippingOutlined as ShippingIcon,
   DoneAllOutlined as DoneIcon,
   CancelOutlined as CancelIcon,
-  PendingActionsOutlined as PendingIcon,
   PaidOutlined as PaidIcon,
   ChevronRightRounded as ChevronRightIcon,
   ClearRounded as ClearIcon,
@@ -24,6 +26,9 @@ import {
   TwoWheelerOutlined as RiderIcon,
   TimelineOutlined as TimelineIcon,
 } from "@mui/icons-material";
+import { useQueryClient } from "@tanstack/react-query";
+import { ToastContainer } from "react-toastify";
+import PropTypes from "prop-types";
 import CustomModal from "../../components/CustomModal";
 import FormattedPrice from "../../utils/FormattedPrice";
 import SelectDate from "../../components/SelectDate";
@@ -32,8 +37,12 @@ import {
   logisticsDeliveryDetailUrl,
   logisticsDeliveriesUrl,
   logisticsOverviewUrl,
+  logisticsDeliveryRefreshUrl,
 } from "../../api/endpoint";
 import { useDateContext } from "../../utils/DateContext";
+import { AuthAxios } from "../../helpers/axiosInstance";
+import { notiError, notiSuccess } from "../../utils/noti";
+import LogisticsTransactions from "../transactions/LogisticsTransactions";
 
 const STATUS_FILTERS = [
   { key: "all", label: "All" },
@@ -70,6 +79,10 @@ const StatusPill = ({ status }) => {
   );
 };
 
+StatusPill.propTypes = {
+  status: PropTypes.string.isRequired,
+};
+
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   <Card
     sx={{
@@ -99,6 +112,15 @@ const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
   </Card>
 );
 
+StatCard.propTypes = {
+  icon: PropTypes.node.isRequired,
+  color: PropTypes.string.isRequired,
+  bg: PropTypes.string.isRequired,
+  label: PropTypes.string.isRequired,
+  value: PropTypes.node.isRequired,
+  subtitle: PropTypes.string,
+};
+
 const normalizeStatus = (status) => {
   const value = String(status || "").toUpperCase();
   return {
@@ -127,6 +149,8 @@ const mapDelivery = (item) => ({
   dropoff: item?.destination_address || item?.dropoff_address || "—",
   amount: Number(item?.amount || item?.shipping_fee || 0),
   status: normalizeStatus(item?.status),
+  shippingCompany: item?.shipping_company || "—",
+  commission: Number(item?.commission ?? 0),
   created: item?.created_at || "—",
   timeline: item?.timeline || [],
 });
@@ -158,10 +182,13 @@ const mapDeliveryDetail = (data, fallback) => {
 };
 
 const LogisticsDashboard = () => {
+  const queryClient = useQueryClient();
   const { selectedDates } = useDateContext();
+  const [activeTab, setActiveTab] = useState(0);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
+  const [refreshingSaleId, setRefreshingSaleId] = useState(null);
 
   const overviewUrl = logisticsOverviewUrl(selectedDates);
   const deliveriesUrl = logisticsDeliveriesUrl(
@@ -233,6 +260,34 @@ const LogisticsDashboard = () => {
     };
   }, [deliveries, deliveriesData, overviewData]);
 
+  const refreshStatus = async (row) => {
+    if (!row.saleId || refreshingSaleId) return;
+    setRefreshingSaleId(row.saleId);
+    try {
+      const response = await AuthAxios.post(
+        logisticsDeliveryRefreshUrl(row.saleId),
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["logisticsDeliveries"] }),
+        queryClient.invalidateQueries({ queryKey: ["logisticsOverview"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["logisticsDeliveryDetail"],
+        }),
+      ]);
+      notiSuccess(
+        response.data?.message || `Shipment ${row.id} status refreshed.`,
+      );
+    } catch (error) {
+      notiError(
+        error?.response?.data?.detail ||
+          error?.response?.data?.message ||
+          `Could not refresh shipment ${row.id}.`,
+      );
+    } finally {
+      setRefreshingSaleId(null);
+    }
+  };
+
   return (
     <div className="w-full flex flex-col gap-6">
       {/* Header */}
@@ -250,6 +305,27 @@ const LogisticsDashboard = () => {
         </div>
       </div>
 
+      <Tabs
+        value={activeTab}
+        onChange={(_, value) => setActiveTab(value)}
+        sx={{
+          borderBottom: 1,
+          borderColor: "divider",
+          "& .MuiTab-root": {
+            textTransform: "none",
+            fontSize: "15px",
+            fontWeight: 500,
+          },
+          "& .Mui-selected": { color: "#02981D !important" },
+          "& .MuiTabs-indicator": { backgroundColor: "#02981D" },
+        }}
+      >
+        <Tab label="Overview" />
+        <Tab label="Logistics Transactions" />
+      </Tabs>
+
+      {activeTab === 0 ? (
+        <>
       {/* Stats */}
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={2.4}>
@@ -367,6 +443,8 @@ const LogisticsDashboard = () => {
                   <th className="py-3 px-3">Rider</th>
                   <th className="py-3 px-3">Route</th>
                   <th className="py-3 px-3">Amount</th>
+                  <th className="py-3 px-3">Shipping Company</th>
+                  <th className="py-3 px-3">Commission</th>
                   <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3 text-right">Action</th>
                 </tr>
@@ -374,14 +452,14 @@ const LogisticsDashboard = () => {
               <tbody>
                 {deliveriesLoading || overviewLoading ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center">
+                    <td colSpan={9} className="py-10 text-center">
                       <CircularProgress size={24} sx={{ color: "#02981D" }} />
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={9}
                       className="py-10 text-center text-primary_grey_2"
                     >
                       No deliveries match the current filter.
@@ -415,11 +493,41 @@ const LogisticsDashboard = () => {
                       <td className="py-4 px-3 text-[13px] text-general">
                         <FormattedPrice amount={row.amount} />
                       </td>
+                      <td className="py-4 px-3 text-[13px] text-general">
+                        {row.shippingCompany}
+                      </td>
+                      <td className="py-4 px-3 text-[13px] font-medium text-[#02981D]">
+                        <FormattedPrice amount={row.commission} />
+                      </td>
                       <td className="py-4 px-3">
                         <StatusPill status={row.status} />
                       </td>
                       <td className="py-4 px-3 text-right">
-                        <ChevronRightIcon sx={{ color: "#5E5E5E" }} />
+                        <div className="inline-flex items-center gap-2">
+                          <Button
+                            size="small"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              refreshStatus(row);
+                            }}
+                            disabled={!row.saleId || Boolean(refreshingSaleId)}
+                            startIcon={
+                              refreshingSaleId === row.saleId ? (
+                                <CircularProgress size={14} />
+                              ) : (
+                                <RefreshIcon fontSize="small" />
+                              )
+                            }
+                            sx={{
+                              color: "#02981D",
+                              textTransform: "none",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Refresh
+                          </Button>
+                          <ChevronRightIcon sx={{ color: "#5E5E5E" }} />
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -454,6 +562,34 @@ const LogisticsDashboard = () => {
                     <FormattedPrice amount={row.amount} />
                   </span>
                 </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <span className="text-[12px] text-primary_grey_2">
+                    {row.shippingCompany} · Commission{" "}
+                    <FormattedPrice amount={row.commission} />
+                  </span>
+                  <Button
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      refreshStatus(row);
+                    }}
+                    disabled={!row.saleId || Boolean(refreshingSaleId)}
+                    startIcon={
+                      refreshingSaleId === row.saleId ? (
+                        <CircularProgress size={14} />
+                      ) : (
+                        <RefreshIcon fontSize="small" />
+                      )
+                    }
+                    sx={{
+                      color: "#02981D",
+                      textTransform: "none",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Refresh
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -470,15 +606,32 @@ const LogisticsDashboard = () => {
           <DeliveryDetail
             row={selectedDetail}
             loading={!detailData}
+            refreshing={refreshingSaleId === selected.saleId}
+            onRefresh={() => refreshStatus(selected)}
             close={() => setSelected(null)}
           />
         )}
       </CustomModal>
+        </>
+      ) : (
+        <LogisticsTransactions />
+      )}
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </div>
   );
 };
 
-const DeliveryDetail = ({ row, loading, close }) => (
+const DeliveryDetail = ({ row, loading, refreshing, onRefresh, close }) => (
   <div className="flex flex-col gap-4">
     {loading ? (
       <div className="flex justify-center py-10">
@@ -493,10 +646,27 @@ const DeliveryDetail = ({ row, loading, close }) => (
           Created {row.created}
         </p>
       </div>
-      <ClearIcon
-        onClick={close}
-        sx={{ color: "#1E1E1E", cursor: "pointer" }}
-      />
+      <div className="flex items-center gap-2">
+        <Button
+          size="small"
+          onClick={onRefresh}
+          disabled={!row.saleId || refreshing}
+          startIcon={
+            refreshing ? (
+              <CircularProgress size={14} />
+            ) : (
+              <RefreshIcon fontSize="small" />
+            )
+          }
+          sx={{ color: "#02981D", textTransform: "none" }}
+        >
+          Refresh status
+        </Button>
+        <ClearIcon
+          onClick={close}
+          sx={{ color: "#1E1E1E", cursor: "pointer" }}
+        />
+      </div>
     </div>
 
     <Grid container spacing={2}>
@@ -566,6 +736,20 @@ const DeliveryDetail = ({ row, loading, close }) => (
               <FormattedPrice amount={row.amount} />
             </p>
           </div>
+          <Divider />
+          <div className="flex items-center justify-between py-2">
+            <p className="text-[12px] text-primary_grey_2">Shipping company</p>
+            <p className="text-[13px] text-general font-medium">
+              {row.shippingCompany}
+            </p>
+          </div>
+          <Divider />
+          <div className="flex items-center justify-between py-2">
+            <p className="text-[12px] text-primary_grey_2">Commission</p>
+            <p className="text-[13px] text-general font-medium">
+              <FormattedPrice amount={row.commission} />
+            </p>
+          </div>
         </div>
       </Grid>
     </Grid>
@@ -616,5 +800,33 @@ const DeliveryDetail = ({ row, loading, close }) => (
     )}
   </div>
 );
+
+DeliveryDetail.propTypes = {
+  row: PropTypes.shape({
+    id: PropTypes.string,
+    saleId: PropTypes.string,
+    created: PropTypes.string,
+    sender: PropTypes.string,
+    receiver: PropTypes.string,
+    rider: PropTypes.string,
+    pickup: PropTypes.string,
+    dropoff: PropTypes.string,
+    amount: PropTypes.number,
+    shippingCompany: PropTypes.string,
+    commission: PropTypes.number,
+    status: PropTypes.string,
+    timeline: PropTypes.arrayOf(
+      PropTypes.shape({
+        label: PropTypes.string,
+        time: PropTypes.string,
+        done: PropTypes.bool,
+      }),
+    ),
+  }),
+  loading: PropTypes.bool.isRequired,
+  refreshing: PropTypes.bool.isRequired,
+  onRefresh: PropTypes.func.isRequired,
+  close: PropTypes.func.isRequired,
+};
 
 export default LogisticsDashboard;

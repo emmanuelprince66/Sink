@@ -24,7 +24,6 @@ import CampaignUnit from "./transactions/CampaignUnit";
 import Funding from "./transactions/Funding";
 import Subscription from "./transactions/Subscription";
 import CampaignDashboard from "./transactions/CampaignDashboard";
-import LogisticsTransactions from "./transactions/LogisticsTransactions";
 // Components and Utils
 import CustomCard from "../components/CustomCard";
 import CustomModal from "../components/CustomModal";
@@ -57,7 +56,6 @@ const TRANSACTION_TABS = {
   SUBSCRIPTION: 1,
   MARKETING: 2,
   CAMPAIGN: 3,
-  LOGISTICS: 4,
 };
 
 const MARKETING_TABS = {
@@ -1116,9 +1114,6 @@ const Transactions = () => {
       case TRANSACTION_TABS.CAMPAIGN:
         return <CampaignDashboard />;
 
-      case TRANSACTION_TABS.LOGISTICS:
-        return <LogisticsTransactions />;
-
       default:
         return (
           <TransactionTable
@@ -1167,17 +1162,12 @@ const Transactions = () => {
                 label="Marketing Automation"
               />
               <Tab value={TRANSACTION_TABS.CAMPAIGN} label="Campaign" />
-              <Tab
-                value={TRANSACTION_TABS.LOGISTICS}
-                label="Logistics Transactions"
-              />
             </Tabs>
           </Box>
 
           {/* Show search and filter only for payment and subscription tabs */}
           {transactionState.activeTab !== TRANSACTION_TABS.MARKETING &&
-            transactionState.activeTab !== TRANSACTION_TABS.CAMPAIGN &&
-            transactionState.activeTab !== TRANSACTION_TABS.LOGISTICS && (
+            transactionState.activeTab !== TRANSACTION_TABS.CAMPAIGN && (
             <>
               <SearchAndExport
                 searchValue={transactionState.searchValue}

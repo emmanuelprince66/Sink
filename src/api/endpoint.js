@@ -129,6 +129,9 @@ export const logisticsDeliveriesUrl = (
 export const logisticsDeliveryDetailUrl = (saleId) =>
   `/logistics/deliveries/${saleId}/`;
 
+export const logisticsDeliveryRefreshUrl = (saleId) =>
+  `/logistics/deliveries/${saleId}/refresh/`;
+
 // Custom domain review endpoints
 export const customDomainListUrl = (
   statusFilter = "ALL",
