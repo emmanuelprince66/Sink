@@ -14,6 +14,8 @@ import {
   SearchOutlined as SearchIcon,
   LocalShippingOutlined as ShippingIcon,
   PaidOutlined as PaidIcon,
+  StorefrontOutlined as StoreIcon,
+  AccountBalanceWalletOutlined as WalletIcon,
 } from "@mui/icons-material";
 import { useQueryClient } from "@tanstack/react-query";
 import PropTypes from "prop-types";
@@ -27,6 +29,7 @@ import {
 import { useDateContext } from "../../utils/DateContext";
 import { AuthAxios } from "../../helpers/axiosInstance";
 import { notiError, notiSuccess } from "../../utils/noti";
+import { mapFinance, mapFinancialTotals } from "../logistics/logisticsFinance";
 
 // `vendor` / `merchant` may come back as an object or a plain string.
 const nameOf = (v) => {
@@ -35,27 +38,25 @@ const nameOf = (v) => {
   return v.business || v.business_name || v.name || "";
 };
 
-const mapTransaction = (item) => ({
-  id: item?.order_id || item?.id,
-  saleId: item?.id,
-  merchant:
-    nameOf(item?.merchant) ||
-    item?.merchant_name ||
-    nameOf(item?.vendor) ||
-    item?.vendor_name ||
-    item?.business_name ||
-    "—",
-  rate: Number(item?.shipping_rate ?? item?.shipping_fee ?? item?.amount ?? 0),
-  company:
-    item?.shipping_company ||
-    item?.courier_name ||
-    item?.courier ||
-    item?.carrier ||
-    item?.logistics_partner ||
-    "—",
-  commission: Number(item?.commission ?? item?.commission_amount ?? 0),
-  status: item?.status || "—",
-});
+const mapTransaction = (item) => {
+  const finance = mapFinance(item);
+  return {
+    id: item?.order_id || item?.id,
+    saleId: item?.id,
+    merchant:
+      nameOf(item?.merchant) ||
+      item?.merchant_name ||
+      nameOf(item?.vendor) ||
+      item?.vendor_name ||
+      item?.business_name ||
+      "—",
+    rate: finance.customerShippingFee,
+    company: item?.shipping_company || "—",
+    commission: finance.sync360Retained,
+    finance,
+    status: item?.status || "—",
+  };
+};
 
 const StatCard = ({ icon, color, bg, label, value, loading }) => (
   <Card
@@ -135,18 +136,10 @@ const LogisticsTransactions = () => {
     );
   }, [transactions, search]);
 
-  // Prefer backend totals; fall back to summing the loaded rows.
-  const totals = useMemo(() => {
-    const metrics = overviewData?.metrics || {};
-    return {
-      shipping:
-        metrics.total_shipping_amount ??
-        transactions.reduce((acc, t) => acc + t.rate, 0),
-      commission:
-        metrics.total_commission ??
-        transactions.reduce((acc, t) => acc + t.commission, 0),
-    };
-  }, [overviewData, transactions]);
+  const totals = useMemo(
+    () => mapFinancialTotals(overviewData, transactions),
+    [overviewData, transactions],
+  );
 
   const loading = deliveriesLoading || overviewLoading;
 
@@ -178,23 +171,43 @@ const LogisticsTransactions = () => {
   return (
     <div className="w-full flex flex-col gap-6">
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            icon={<WalletIcon fontSize="small" />}
+            color="#3949AB"
+            bg="#EEF2FF"
+            label="Total Customer Paid"
+            value={totals.customerPaid}
+            loading={loading}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            icon={<StoreIcon fontSize="small" />}
+            color="#B26A00"
+            bg="#FFF7E8"
+            label="Paid to Merchants"
+            value={totals.paidToMerchants}
+            loading={loading}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             icon={<ShippingIcon fontSize="small" />}
             color="#0369A1"
             bg="#E0F2FE"
-            label="Total Shipping Amount"
-            value={totals.shipping}
+            label="Paid to Shipbubble"
+            value={totals.paidToShipbubble}
             loading={loading}
           />
         </Grid>
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12} sm={6} md={3}>
           <StatCard
             icon={<PaidIcon fontSize="small" />}
             color="#02981D"
             bg="#E6F7EA"
             label="Total Commission Earned"
-            value={totals.commission}
+            value={totals.sync360Retained}
             loading={loading}
           />
         </Grid>

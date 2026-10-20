@@ -43,6 +43,11 @@ import { useDateContext } from "../../utils/DateContext";
 import { AuthAxios } from "../../helpers/axiosInstance";
 import { notiError, notiSuccess } from "../../utils/noti";
 import LogisticsTransactions from "../transactions/LogisticsTransactions";
+import {
+  DELIVERY_TYPE_LABEL,
+  PAYMENT_METHOD_LABEL,
+  mapFinance,
+} from "./logisticsFinance";
 
 const STATUS_FILTERS = [
   { key: "all", label: "All" },
@@ -139,24 +144,30 @@ const normalizeStatus = (status) => {
   }[value] || String(status || "pending").toLowerCase();
 };
 
-const mapDelivery = (item) => ({
-  id: item?.order_id || item?.id || "—",
-  saleId: item?.id || item?.sale_id,
-  sender: item?.vendor_name || item?.sender_name || "—",
-  receiver: item?.receiver_name || "—",
-  rider: item?.rider_name || "Unassigned",
-  pickup: item?.origin_address || item?.pickup_address || "—",
-  dropoff: item?.destination_address || item?.dropoff_address || "—",
-  amount: Number(item?.amount || item?.shipping_fee || 0),
-  status: normalizeStatus(item?.status),
-  shippingCompany: item?.shipping_company || "—",
-  commission: Number(item?.commission ?? 0),
-  created: item?.created_at || "—",
-  timeline: item?.timeline || [],
-});
+const mapDelivery = (item) => {
+  const finance = mapFinance(item);
+  return {
+    id: item?.order_id || item?.id || "—",
+    saleId: item?.id || item?.sale_id,
+    sender: item?.vendor_name || item?.sender_name || "—",
+    receiver: item?.receiver_name || "—",
+    rider: item?.rider_name || item?.parties?.rider_name || "Unassigned",
+    riderPhone: item?.rider_phone || item?.parties?.rider_phone || "",
+    pickup: item?.origin_address || item?.pickup_address || "—",
+    dropoff: item?.destination_address || item?.dropoff_address || "—",
+    amount: finance.customerPaid,
+    status: normalizeStatus(item?.status),
+    shippingCompany: item?.shipping_company || "—",
+    commission: finance.sync360Retained,
+    finance,
+    created: item?.created_at || "—",
+    timeline: item?.timeline || [],
+  };
+};
 
 const mapDeliveryDetail = (data, fallback) => {
   const parties = data?.parties || {};
+  const finance = data?.financial_breakdown ? mapFinance(data) : fallback.finance;
   const route = data?.route || {};
   const timeline = Array.isArray(data?.timeline)
     ? data.timeline.map((event) => ({
@@ -172,9 +183,13 @@ const mapDeliveryDetail = (data, fallback) => {
     sender: parties.vendor_name || fallback.sender,
     receiver: parties.receiver_name || fallback.receiver,
     rider: parties.rider_name || fallback.rider,
+    riderPhone: parties.rider_phone || fallback.riderPhone,
     pickup: route.pickup_address || fallback.pickup,
     dropoff: route.dropoff_address || fallback.dropoff,
-    amount: Number(data?.amount ?? fallback.amount),
+    shippingCompany: data?.shipping_company || fallback.shippingCompany,
+    finance,
+    amount: finance?.customerPaid ?? fallback.amount,
+    commission: finance?.sync360Retained ?? fallback.commission,
     status: normalizeStatus(data?.current_status || fallback.status),
     created: data?.created_at || fallback.created,
     timeline,
@@ -442,7 +457,7 @@ const LogisticsDashboard = () => {
                   <th className="py-3 px-3">Vendor → Receiver</th>
                   <th className="py-3 px-3">Rider</th>
                   <th className="py-3 px-3">Route</th>
-                  <th className="py-3 px-3">Amount</th>
+                  <th className="py-3 px-3">Customer Paid</th>
                   <th className="py-3 px-3">Shipping Company</th>
                   <th className="py-3 px-3">Commission</th>
                   <th className="py-3 px-3">Status</th>
@@ -703,6 +718,14 @@ const DeliveryDetail = ({ row, loading, refreshing, onRefresh, close }) => (
               <p className="text-[13px] text-general font-medium">
                 {row.rider}
               </p>
+              {row.riderPhone && (
+                <a
+                  href={`tel:${row.riderPhone}`}
+                  className="text-[12px] text-[#02981D]"
+                >
+                  {row.riderPhone}
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -731,28 +754,16 @@ const DeliveryDetail = ({ row, loading, refreshing, onRefresh, close }) => (
           </div>
           <Divider />
           <div className="flex items-center justify-between py-2">
-            <p className="text-[12px] text-primary_grey_2">Amount</p>
-            <p className="text-[14px] text-general font-semibold">
-              <FormattedPrice amount={row.amount} />
-            </p>
-          </div>
-          <Divider />
-          <div className="flex items-center justify-between py-2">
             <p className="text-[12px] text-primary_grey_2">Shipping company</p>
             <p className="text-[13px] text-general font-medium">
               {row.shippingCompany}
             </p>
           </div>
-          <Divider />
-          <div className="flex items-center justify-between py-2">
-            <p className="text-[12px] text-primary_grey_2">Commission</p>
-            <p className="text-[13px] text-general font-medium">
-              <FormattedPrice amount={row.commission} />
-            </p>
-          </div>
         </div>
       </Grid>
     </Grid>
+
+    <FinancialBreakdown finance={row.finance} />
 
     <div className="border border-[#EFEFEF] rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
@@ -801,6 +812,87 @@ const DeliveryDetail = ({ row, loading, refreshing, onRefresh, close }) => (
   </div>
 );
 
+const MoneyRow = ({ label, amount, strong, accent }) => (
+  <div className="flex items-center justify-between py-1.5">
+    <p className="text-[12px] text-primary_grey_2">{label}</p>
+    <div
+      className={`text-[13px] ${strong ? "font-semibold" : "font-medium"}`}
+      style={{ color: accent || "#1E1E1E" }}
+    >
+      <FormattedPrice amount={amount} />
+    </div>
+  </div>
+);
+
+MoneyRow.propTypes = {
+  label: PropTypes.string.isRequired,
+  amount: PropTypes.number.isRequired,
+  strong: PropTypes.bool,
+  accent: PropTypes.string,
+};
+
+const FinancialBreakdown = ({ finance }) => {
+  if (!finance) return null;
+  const tags = [
+    PAYMENT_METHOD_LABEL[finance.paymentMethod] || finance.paymentMethod,
+    DELIVERY_TYPE_LABEL[finance.deliveryType] || finance.deliveryType,
+  ].filter(Boolean);
+
+  return (
+    <div className="border border-[#EFEFEF] rounded-xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+          Financial breakdown
+        </p>
+        <div className="flex gap-1.5">
+          {tags.map((t) => (
+            <span
+              key={t}
+              className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#F5F5F5] text-[#5E5E5E]"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      </div>
+      <Divider />
+      <Grid container spacing={3} sx={{ mt: 0 }}>
+        <Grid item xs={12} md={6}>
+          <MoneyRow label="Customer paid" amount={finance.customerPaid} strong />
+          <MoneyRow label="Merchant received" amount={finance.businessReceived} />
+          <MoneyRow label="Shipbubble cost" amount={finance.shipbubbleCost} />
+          <MoneyRow
+            label="Sync360 retained"
+            amount={finance.sync360Retained}
+            strong
+            accent="#02981D"
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <MoneyRow label="Merchandise" amount={finance.merchandiseAmount} />
+          <MoneyRow
+            label="Customer shipping fee"
+            amount={finance.customerShippingFee}
+          />
+          <MoneyRow
+            label="Payment gateway charge"
+            amount={finance.paymentGatewayCharge}
+          />
+          {finance.bnplPlatformFee > 0 && (
+            <MoneyRow label="BNPL platform fee" amount={finance.bnplPlatformFee} />
+          )}
+          <MoneyRow label="Shipping margin" amount={finance.shippingMargin} />
+          <MoneyRow label="Gateway margin" amount={finance.gatewayMargin} />
+        </Grid>
+      </Grid>
+    </div>
+  );
+};
+
+FinancialBreakdown.propTypes = {
+  finance: PropTypes.object,
+};
+
 DeliveryDetail.propTypes = {
   row: PropTypes.shape({
     id: PropTypes.string,
@@ -809,11 +901,13 @@ DeliveryDetail.propTypes = {
     sender: PropTypes.string,
     receiver: PropTypes.string,
     rider: PropTypes.string,
+    riderPhone: PropTypes.string,
     pickup: PropTypes.string,
     dropoff: PropTypes.string,
     amount: PropTypes.number,
     shippingCompany: PropTypes.string,
     commission: PropTypes.number,
+    finance: PropTypes.object,
     status: PropTypes.string,
     timeline: PropTypes.arrayOf(
       PropTypes.shape({
