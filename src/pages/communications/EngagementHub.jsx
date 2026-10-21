@@ -18,6 +18,7 @@ import {
   Tab,
   Tabs,
   TextField,
+  Skeleton,
 } from "@mui/material";
 import {
   AddRounded as AddIcon,
@@ -34,6 +35,7 @@ import {
   CancelOutlined as CancelIcon,
   HourglassEmpty as PendingIcon,
   ClearRounded as ClearIcon,
+  VisibilityOutlined as ViewIcon,
 } from "@mui/icons-material";
 import CustomPagination from "../../components/CustomPagination";
 import CustomModal from "../../components/CustomModal";
@@ -44,6 +46,7 @@ import {
   engagementCampaignsUrl,
   engagementAudienceEstimateUrl,
   engagementBroadcastUrl,
+  engagementCampaignDetailUrl,
 } from "../../api/endpoint";
 import useFetchData from "../../hooks/useFetchData";
 import { AuthAxios } from "../../helpers/axiosInstance";
@@ -230,6 +233,10 @@ const EngagementHub = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   // Broadcast review/confirm — holds the validated payload awaiting send
   const [pendingBroadcast, setPendingBroadcast] = useState(null);
+  // Campaign details modal
+  const [viewCampaignModalOpen, setViewCampaignModalOpen] = useState(false);
+  const [campaignDetail, setCampaignDetail] = useState(null);
+  const [campaignDetailLoading, setCampaignDetailLoading] = useState(false);
 
   // ── Campaigns pagination ──
   const [campaignsPage, setCampaignsPage] = useState(1);
@@ -498,6 +505,33 @@ const EngagementHub = () => {
     // Don't fire immediately — open a review modal so the admin can confirm
     // before blasting the audience.
     setPendingBroadcast(payload);
+  };
+
+  const handleViewCampaign = async (campaign) => {
+    if (!campaign?.id) return;
+    setViewCampaignModalOpen(true);
+    setCampaignDetail(null);
+    setCampaignDetailLoading(true);
+    try {
+      const res = await AuthAxios.get(
+        engagementCampaignDetailUrl(campaign.id)
+      );
+      const data = res?.data?.data || res?.data;
+      setCampaignDetail(data);
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.detail?.[0]?.msg ||
+          err?.response?.data?.message ||
+          "Failed to load campaign details"
+      );
+    } finally {
+      setCampaignDetailLoading(false);
+    }
+  };
+
+  const closeCampaignModal = () => {
+    setViewCampaignModalOpen(false);
+    setCampaignDetail(null);
   };
 
   const confirmSend = () => {
@@ -963,19 +997,20 @@ const EngagementHub = () => {
                       <th className="py-3 px-3 text-right">Delivered</th>
                       <th className="py-3 px-3 text-right">Open Rate</th>
                       <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-3 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {campaignsLoading ? (
                       <tr>
-                        <td colSpan={7} className="py-10 text-center">
-                          <CircularProgress sx={{ color: "#02981D" }} />
+                        <td colSpan={8} className="py-10 text-center">
+            
                         </td>
                       </tr>
                     ) : campaigns.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={8}
                           className="py-10 text-center text-primary_grey_2"
                         >
                           No campaigns sent yet.
@@ -1043,6 +1078,29 @@ const EngagementHub = () => {
                             </td>
                             <td className="py-4 px-3">
                               <StatusPill status={c?.status} />
+                            </td>
+                            <td className="py-4 px-3 text-center">
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => handleViewCampaign(c)}
+                                startIcon={<ViewIcon fontSize="small" />}
+                                sx={{
+                                  textTransform: "none",
+                                  fontSize: "12px",
+                                  borderColor: "#E3E3E3",
+                                  color: "#5E5E5E",
+                                  py: 0.5,
+                                  px: 1.5,
+                                  "&:hover": {
+                                    borderColor: "#02981D",
+                                    color: "#02981D",
+                                    background: "#F6FFF8",
+                                  },
+                                }}
+                              >
+                                View
+                              </Button>
                             </td>
                           </tr>
                         );
@@ -1397,6 +1455,237 @@ const EngagementHub = () => {
             </div>
           </div>
         )}
+      </CustomModal>
+
+      {/* Campaign Detail modal */}
+      <CustomModal
+        open={viewCampaignModalOpen}
+        closeModal={closeCampaignModal}
+        style="w-[95%] md:w-3/5 lg:w-[560px]"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[18px] font-semibold text-general">
+              Campaign Details
+            </p>
+            <ClearIcon
+              onClick={closeCampaignModal}
+              sx={{ color: "#1E1E1E", cursor: "pointer" }}
+            />
+          </div>
+
+          {campaignDetailLoading ? (
+            <div className="flex flex-col gap-4 py-1">
+              {/* Title & Status Skeleton */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 space-y-1">
+                  <Skeleton variant="text" width={90} height={16} />
+                  <Skeleton variant="text" width="65%" height={28} />
+                </div>
+                <Skeleton
+                  variant="rounded"
+                  width={85}
+                  height={28}
+                  sx={{ borderRadius: "9999px" }}
+                />
+              </div>
+
+              {/* Metrics summary Skeleton */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#FAFAFA] border border-[#EFEFEF] rounded-xl p-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex flex-col space-y-1">
+                    <Skeleton variant="text" width={40} height={14} />
+                    <Skeleton variant="text" width={55} height={22} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Metadata rows Skeleton */}
+              <div className="border border-[#EFEFEF] rounded-xl divide-y divide-[#F5F5F5]">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between px-4 py-2.5"
+                  >
+                    <Skeleton variant="text" width={80} height={16} />
+                    <Skeleton variant="text" width={110} height={18} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Message Body Skeleton */}
+              <div>
+                <Skeleton variant="text" width={90} height={16} sx={{ mb: 1 }} />
+                <Skeleton
+                  variant="rounded"
+                  width="100%"
+                  height={80}
+                  sx={{ borderRadius: "12px" }}
+                />
+              </div>
+
+              <div className="flex justify-end mt-2">
+                <Skeleton variant="rounded" width={80} height={36} />
+              </div>
+
+            </div>
+          ) : campaignDetail ? (
+            <div className="flex flex-col gap-4">
+              {/* Title & Status */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <span className="text-[11px] uppercase tracking-wide text-primary_grey_2 font-medium">
+                    Title / Subject
+                  </span>
+                  <p className="text-[16px] font-semibold text-general mt-0.5">
+                    {campaignDetail.title || "—"}
+                  </p>
+                </div>
+                <StatusPill status={campaignDetail.status} />
+              </div>
+
+              {/* Metrics summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#FAFAFA] border border-[#EFEFEF] rounded-xl p-3">
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-primary_grey_2">Sent</span>
+                  <span className="text-[15px] font-semibold text-general">
+                    {Number(campaignDetail.sent_count ?? 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-primary_grey_2">Delivered</span>
+                  <span className="text-[15px] font-semibold text-[#02981D]">
+                    {Number(campaignDetail.delivered_count ?? 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-primary_grey_2">Opens</span>
+                  <span className="text-[15px] font-semibold text-general">
+                    {Number(campaignDetail.open_count ?? 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[11px] text-primary_grey_2">Open Rate</span>
+                  <span className="text-[15px] font-semibold text-[#3949AB]">
+                    {fmtOpenRate(campaignDetail.open_rate)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Metadata List */}
+              <div className="border border-[#EFEFEF] rounded-xl divide-y divide-[#F5F5F5]">
+                <div className="flex items-center justify-between px-4 py-2.5">
+                  <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                    Channels
+                  </span>
+                  <div className="flex gap-1 flex-wrap justify-end">
+                    {parseChannels(campaignDetail.channel).map((ch) => (
+                      <Chip
+                        key={ch}
+                        size="small"
+                        label={ch}
+                        sx={{
+                          background:
+                            ch === "EMAIL"
+                              ? "#EEF2FF"
+                              : ch === "SMS"
+                              ? "#E6F7EA"
+                              : "#FFF7E8",
+                          color:
+                            ch === "EMAIL"
+                              ? "#3949AB"
+                              : ch === "SMS"
+                              ? "#02981D"
+                              : "#B26A00",
+                          fontWeight: 600,
+                        }}
+                      />
+                    ))}
+                    {parseChannels(campaignDetail.channel).length === 0 && (
+                      <span className="text-[13px] text-primary_grey_2">—</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between px-4 py-2.5">
+                  <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                    Audience Type
+                  </span>
+                  <span className="text-[13px] text-general font-medium">
+                    {AUDIENCE_TYPES.find(
+                      (a) => a.key === campaignDetail.audience_type
+                    )?.label ||
+                      campaignDetail.audience_type ||
+                      "—"}
+                  </span>
+                </div>
+
+                {campaignDetail.audience_value && (
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                      Audience Value
+                    </span>
+                    <span className="text-[13px] text-general font-medium">
+                      {campaignDetail.audience_value}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between px-4 py-2.5">
+                  <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                    Sent At
+                  </span>
+                  <span className="text-[13px] text-general font-medium">
+                    {fmtDate(campaignDetail.sent_at)}
+                  </span>
+                </div>
+
+                {campaignDetail.id && (
+                  <div className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-[12px] uppercase tracking-wide text-primary_grey_2">
+                      Campaign ID
+                    </span>
+                    <span className="text-[11px] font-mono text-primary_grey_2 truncate max-w-[240px]">
+                      {campaignDetail.id}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Message Body */}
+              <div>
+                <p className="text-[12px] uppercase tracking-wide text-primary_grey_2 mb-1.5 font-medium">
+                  Message Body
+                </p>
+                <div className="bg-[#FAFAFA] border border-[#EFEFEF] rounded-xl p-3 max-h-[180px] overflow-y-auto">
+                  <p className="text-[13px] text-general whitespace-pre-wrap leading-relaxed">
+                    {campaignDetail.body || "No message body provided."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end mt-2">
+                <Button
+                  type="button"
+                  variant="outlined"
+                  onClick={closeCampaignModal}
+                  sx={{
+                    textTransform: "none",
+                    borderColor: "#E3E3E3",
+                    color: "#5E5E5E",
+                    "&:hover": { borderColor: "#02981D", color: "#02981D" },
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p className="py-8 text-center text-primary_grey_2 text-[13px]">
+              No details found for this campaign.
+            </p>
+          )}
+        </div>
       </CustomModal>
 
       <ToastContainer position="top-right" autoClose={4000} />

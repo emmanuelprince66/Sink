@@ -464,6 +464,10 @@ export const engagementTemplateUrl = (id) =>
 export const engagementMetricsUrl = () =>
   `${ENGAGEMENT_BASE}/engagement/metrics/`;
 
+// Delivery logs / campaigns detail
+export const engagementCampaignDetailUrl = (campaignId) =>
+  `${ENGAGEMENT_BASE}/engagement/campaigns/${campaignId}`;
+
 // Delivery logs / campaigns — paginated
 export const engagementCampaignsUrl = (page, pageSize) =>
   `${ENGAGEMENT_BASE}/engagement/campaigns/${buildQuery({
