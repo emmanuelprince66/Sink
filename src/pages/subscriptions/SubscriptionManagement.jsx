@@ -48,6 +48,8 @@ import {
   PLAN_FEATURE_FIELDS,
   PLAN_LIMIT_FIELDS,
   PLAN_PRICE_FIELDS,
+  UNLIMITED,
+  isUnlimited,
 } from "../users/userData";
 
 const StatCard = ({ icon, color, bg, label, value, subtitle }) => (
@@ -172,7 +174,9 @@ const PlanCard = ({ plan, onEdit }) => {
                 {f.label}
               </span>
               <span className="text-general font-semibold">
-                {Number(plan?.[f.key] || 0).toLocaleString()}
+                {isUnlimited(plan?.[f.key])
+                  ? "Unlimited"
+                  : Number(plan?.[f.key] || 0).toLocaleString()}
               </span>
             </div>
           ))}
@@ -224,7 +228,10 @@ const emptyPlan = () => ({
   name: "",
   description: "",
   ...PLAN_PRICE_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: 0 }), {}),
-  ...PLAN_LIMIT_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: 0 }), {}),
+  ...PLAN_LIMIT_FIELDS.reduce(
+    (acc, f) => ({ ...acc, [f.key]: f.default ?? 0 }),
+    {},
+  ),
   ...PLAN_FEATURE_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: false }), {}),
   is_active: true,
 });
@@ -1047,21 +1054,63 @@ const SubscriptionManagement = () => {
               Usage Limits
             </p>
             <Grid container spacing={2}>
-              {PLAN_LIMIT_FIELDS.map((f) => (
-                <Grid item xs={12} sm={6} key={f.key}>
-                  <TextField
-                    type="number"
-                    size="small"
-                    fullWidth
-                    label={f.label}
-                    value={form[f.key] ?? 0}
-                    onChange={(e) =>
-                      setField(f.key, Number(e.target.value) || 0)
-                    }
-                  />
-                </Grid>
-              ))}
+              {PLAN_LIMIT_FIELDS.map((f) => {
+                const unlimited = isUnlimited(form[f.key]);
+                return (
+                  <Grid item xs={12} sm={6} key={f.key}>
+                    <TextField
+                      type={unlimited ? "text" : "number"}
+                      size="small"
+                      fullWidth
+                      label={f.label}
+                      value={unlimited ? "Unlimited" : (form[f.key] ?? 0)}
+                      disabled={unlimited}
+                      inputProps={unlimited ? {} : { min: 0 }}
+                      onChange={(e) =>
+                        setField(
+                          f.key,
+                          Math.max(0, Number(e.target.value) || 0),
+                        )
+                      }
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <label className="flex items-center gap-1 cursor-pointer text-[11px] text-primary_grey_2 select-none">
+                              ∞
+                              <Switch
+                                size="small"
+                                checked={unlimited}
+                                onChange={(e) =>
+                                  setField(
+                                    f.key,
+                                    e.target.checked
+                                      ? UNLIMITED
+                                      : (f.default ?? 0),
+                                  )
+                                }
+                                inputProps={{
+                                  "aria-label": `Unlimited ${f.label}`,
+                                }}
+                                sx={{
+                                  "& .MuiSwitch-switchBase.Mui-checked": {
+                                    color: "#02981D",
+                                  },
+                                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track":
+                                    { backgroundColor: "#02981D" },
+                                }}
+                              />
+                            </label>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                );
+              })}
             </Grid>
+            <p className="text-[11px] text-primary_grey_2 mt-2">
+              Toggle ∞ to make a limit unlimited.
+            </p>
           </div>
 
           {/* Features */}

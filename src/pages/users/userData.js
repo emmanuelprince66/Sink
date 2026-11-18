@@ -135,7 +135,13 @@ export const PLAN_LIMIT_FIELDS = [
   { key: "customers_count", label: "Customers" },
   { key: "no_of_campaign_groups", label: "Campaign Groups" },
   { key: "free_campaign_unit", label: "Free Campaign Units" },
+  // -1 = unlimited; API defaults to 10 when omitted
+  { key: "no_of_bookings", label: "Bookings / Month", default: 10 },
 ];
+
+// Sentinel the API uses for "no limit" on limit fields
+export const UNLIMITED = -1;
+export const isUnlimited = (v) => Number(v) === UNLIMITED;
 
 export const PLAN_FEATURE_FIELDS = [
   { key: "bulk_email", label: "Bulk Email" },
@@ -145,6 +151,7 @@ export const PLAN_FEATURE_FIELDS = [
   { key: "track_income", label: "Track Income" },
   { key: "bank_expenses_traking", label: "Bank Expense Tracking" },
   { key: "production", label: "Production" },
+  { key: "custom_domain", label: "Custom Domain" },
 ];
 
 export const PLAN_PRICE_FIELDS = [
